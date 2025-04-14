@@ -1,2 +1,1 @@
-import waveforma as wf
-
+from sound import *
