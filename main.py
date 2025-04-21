@@ -1,6 +1,6 @@
 from channel import *
 
-def main():
+def test_week2():
     # Create a channel
     channel1 = Channel(duration=2.0, sample_rate=44100)
     # Create a waveform (e.g., sawtooth)
@@ -22,12 +22,19 @@ def main():
     # Apply filter to waveform
     channel1.add_filter(filter)
 
+    channel1.play()
+
     # Create a reverb
     reverb = Reverb(decay=0.5, delay=0.2, reflections=5)
     # Apply reverb to waveform
     channel1.add_reverb(reverb)
 
     channel1.play()
+
+
+def main():
+    
+    
 
 if __name__ == "__main__":
     main()
