@@ -1,6 +1,7 @@
 from channel import *
+from sound import *
 
-def test_week2():
+def test_channel():
     # Create a channel
     channel1 = Channel(duration=2.0, sample_rate=44100)
     # Create a waveform (e.g., sawtooth)
@@ -31,10 +32,42 @@ def test_week2():
 
     channel1.play()
 
+def test_sound():
+    # Create a sound
+    sound = Sound(sample_rate=44100)
+    # Create a channel
+    channel1 = Channel(duration=2.0, sample_rate=44100)
+    # Create a waveform (e.g., sawtooth)
+    waveform = Waveform("saw", frequency=440, sample_rate=44100, duration=1.0)    
+    # Add waveform to channel
+    channel1.set_waveform(waveform)
+
+    sound.add_channel(channel1)
+    sound.play()
+
+    # Create another channel
+    channel2 = Channel(duration=2.0, sample_rate=44100)
+    # Create a waveform (e.g., sine)
+    waveform2 = Waveform("sine", frequency=550, sample_rate=44100, duration=1.0)
+    # Add waveform to channel
+    channel2.set_waveform(waveform2)
+
+    sound.add_channel(channel2)
+    sound.play()
+
+    # Create a third channel
+    channel3 = Channel(duration=2.0, sample_rate=44100)
+    # Create a waveform (e.g., square)
+    waveform3 = Waveform("square", frequency=500, sample_rate=44100, duration=1.0)
+    # Add waveform to channel
+    channel3.set_waveform(waveform3)
+
+    sound.add_channel(channel3, volume=0.1)
+    sound.play()
+
 
 def main():
-    
-    
+    test_sound()
 
 if __name__ == "__main__":
     main()
