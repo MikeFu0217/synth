@@ -1,0 +1,55 @@
+{
+  "description": "An energetic loop with two square waves creating a harmonized melody with quick envelopes and echo.",
+  "channels": [
+    {
+      "waveform": {
+        "name": "square",
+        "frequency": 330,
+        "duration": 2.0,
+        "sample_rate": 44100
+      },
+      "envelope": {
+        "attack_time": 0.05,
+        "decay_time": 0.1,
+        "sustain_level": 0.8,
+        "release_time": 0.1
+      },
+      "filter": {
+        "low": 400,
+        "mid": 600,
+        "high": 800
+      },
+      "reverb": {
+        "decay": 1.2,
+        "delay": 0.5,
+        "reflections": 4
+      },
+      "volume": 0.8
+    },
+    {
+      "waveform": {
+        "name": "square",
+        "frequency": 660,
+        "duration": 2.0,
+        "sample_rate": 44100
+      },
+      "envelope": {
+        "attack_time": 0.05,
+        "decay_time": 0.1,
+        "sustain_level": 0.8,
+        "release_time": 0.1
+      },
+      "filter": {
+        "low": 600,
+        "mid": 800,
+        "high": 1200
+      },
+      "reverb": {
+        "decay": 1.0,
+        "delay": 0.5,
+        "reflections": 4
+      },
+      "volume": 0.8
+    }
+  ]
+}
