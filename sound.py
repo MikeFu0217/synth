@@ -21,6 +21,22 @@ class Sound:
             self.volumes.pop(index)
             self.duration = max([c.duration for c in self.channels]) if self.channels else 0.0
 
+    def get_volume(self, channel):
+        """Get the volume for a specific channel."""
+        if channel in self.channels:
+            index = self.channels.index(channel)
+            return self.volumes[index]
+        else:
+            raise ValueError("Channel not found in sound.")
+    
+    def set_volume(self, channel, volume):
+        """Set the volume for a specific channel."""
+        if channel in self.channels:
+            index = self.channels.index(channel)
+            self.volumes[index] = volume
+        else:
+            raise ValueError("Channel not found in sound.")
+
     def get_soundarray(self):
         wave = np.zeros(int(self.duration * self.sample_rate))
         for channel in self.channels:
