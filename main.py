@@ -70,6 +70,7 @@ param_names = ["vol", "att", "dec", "sus", "rel", "L", "M", "H", "dec2", "del", 
 view.draw_texts(screen, font)
 view.draw_params(screen, font, sound)
 view.draw_box(screen, "saw", "vol")
+view.draw_waveform_preview(screen, "saw")
 pygame.display.update()
 
 # GPIO callback function & event detection

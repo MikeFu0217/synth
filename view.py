@@ -1,3 +1,4 @@
+import math
 import pygame, pigame
 from pygame.locals import *
 from sound import *
@@ -152,9 +153,61 @@ def draw_box(screen, wave_name, param_name):
     pygame.draw.rect(box_surf, color, (0, 0, box_width, box_height), line_width)
     screen.blit(box_surf, position)
 
+green = (0, 255, 0)
+
+def draw_waveform_preview(screen, wave_name):
+    """
+    Draw a 2-cycle waveform preview (sine, saw, or square)
+    in the upper-right, with 1/6 horizontal and 1/10 vertical margins,
+    framed in white, trace in green.
+    """
+    # screen inset
+    margin = 5
+    preview_w = int(width / 2.3)
+    preview_h = int(height / 3.2)
+    x = width - preview_w - margin
+    y = margin
+
+    # draw border
+    rect = pygame.Rect(x, y, preview_w, preview_h)
+    pygame.draw.rect(screen, white, rect, 1)
+
+    # compute inner drawing region
+    region_h = preview_h * 4 / 5            # fill 4/5 vertically
+    vert_margin = (preview_h - region_h) / 2
+    region_w = preview_w * 5 / 6            # fill 4/6 horizontally
+    horiz_margin = (preview_w - region_w) / 2
+
+    # sample points
+    points = []
+    n_samples = preview_w                   # resolution
+    periods = 2                             # two full cycles
+    for i in range(n_samples):
+        t = i / (n_samples - 1)
+        phase = t * periods
+
+        if wave_name == 'sin':
+            v = math.sin(2 * math.pi * phase)
+        elif wave_name == 'saw':
+            v = 2 * (phase % 1) - 1
+        elif wave_name == 'sqr':
+            v = 1.0 if (phase % 1) < 0.5 else -1.0
+        else:
+            raise ValueError(f"Unknown wave '{wave_name}'")
+
+        # map to pixel coords within the inner region
+        px = x + horiz_margin + (i / (n_samples - 1)) * region_w
+        py = y + vert_margin + (region_h / 2) * (1 - v)
+        points.append((int(px), int(py)))
+
+    # draw the green trace
+    if len(points) > 1:
+        pygame.draw.lines(screen, green, False, points, 1)
+
 def draw_screen(screen, font, sound, wave_name, param_name):
     screen.fill(black)
     draw_texts(screen, font)
     draw_params(screen, font, sound)
     draw_box(screen, wave_name, param_name)
+    draw_waveform_preview(screen, wave_name)
     pygame.display.update()
