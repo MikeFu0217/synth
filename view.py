@@ -153,38 +153,56 @@ def draw_box(screen, wave_name, param_name):
     pygame.draw.rect(box_surf, color, (0, 0, box_width, box_height), line_width)
     screen.blit(box_surf, position)
 
+
 green = (0, 255, 0)
 
+# constants
+OUTER_MARGIN = 5       # margin between panels & screen edge
+INNER_PADDING = 5      # padding inside each panel
+PANELS = 3             # waveform, envelope, filter
+
+def _compute_panel_regions():
+    """Return a list of (x, y, w, h) for the 3 stacked panels on right half."""
+    side_x = width // 2
+    side_w = width - side_x
+    side_h = height
+
+    # usable area on right half
+    x0 = side_x
+    w0 = side_w
+
+    # divide vertically into 3, with OUTER_MARGIN between them
+    total_margin = OUTER_MARGIN * (PANELS + 1)
+    h0 = (side_h - total_margin) // PANELS
+
+    regions = []
+    for i in range(PANELS):
+        xi = x0 + OUTER_MARGIN
+        yi = OUTER_MARGIN + i * (h0 + OUTER_MARGIN)
+        wi = w0 - 2 * OUTER_MARGIN
+        hi = h0
+        regions.append((xi, yi, wi, hi))
+    return regions  # [(x1,y1,w1,h1), (x2,y2,w2,h2), (x3,y3,w3,h3)]
+
 def draw_waveform_preview(screen, wave_name):
-    """
-    Draw a 2-cycle waveform preview (sine, saw, or square)
-    in the upper-right, with 1/6 horizontal and 1/10 vertical margins,
-    framed in white, trace in green.
-    """
-    # screen inset
-    margin = 5
-    preview_w = int(width / 2.3)
-    preview_h = int(height / 3.2)
-    x = width - preview_w - margin
-    y = margin
+    panel, _, _ = _compute_panel_regions()
+    x, y, w, h = panel
 
-    # draw border
-    rect = pygame.Rect(x, y, preview_w, preview_h)
-    pygame.draw.rect(screen, white, rect, 1)
+    # border
+    pygame.draw.rect(screen, white, (x, y, w, h), 1)
 
-    # compute inner drawing region
-    region_h = preview_h * 4 / 5            # fill 4/5 vertically
-    vert_margin = (preview_h - region_h) / 2
-    region_w = preview_w * 5 / 6            # fill 4/6 horizontally
-    horiz_margin = (preview_w - region_w) / 2
+    # inner region
+    rx = x + INNER_PADDING
+    ry = y + INNER_PADDING
+    rw = w - 2 * INNER_PADDING
+    rh = h - 2 * INNER_PADDING
 
-    # sample points
     points = []
-    n_samples = preview_w                   # resolution
-    periods = 2                             # two full cycles
-    for i in range(n_samples):
-        t = i / (n_samples - 1)
-        phase = t * periods
+    samples = rw
+    cycles = 2
+    for i in range(samples):
+        t = i / (samples - 1)
+        phase = t * cycles
 
         if wave_name == 'sin':
             v = math.sin(2 * math.pi * phase)
@@ -195,19 +213,98 @@ def draw_waveform_preview(screen, wave_name):
         else:
             raise ValueError(f"Unknown wave '{wave_name}'")
 
-        # map to pixel coords within the inner region
-        px = x + horiz_margin + (i / (n_samples - 1)) * region_w
-        py = y + vert_margin + (region_h / 2) * (1 - v)
+        px = rx + i
+        # center vertically in rx→rx+rw, map v∈[-1,1] to ry+rh → ry
+        cy = ry + rh / 2
+        amp = rh / 2
+        py = cy - v * amp
+
         points.append((int(px), int(py)))
 
-    # draw the green trace
     if len(points) > 1:
         pygame.draw.lines(screen, green, False, points, 1)
 
+
+def draw_envelope_preview(screen, sound, wave_name):
+    _, panel, _ = _compute_panel_regions()
+    x, y, w, h = panel
+
+    pygame.draw.rect(screen, white, (x, y, w, h), 1)
+
+    rx = x + INNER_PADDING
+    ry = y + INNER_PADDING
+    rw = w - 2 * INNER_PADDING
+    rh = h - 2 * INNER_PADDING
+
+    # find channel
+    ch = next((c for c in sound.channels if c.waveform.name == wave_name), None)
+    if not ch:
+        return
+
+    A = sound.get_env_att(ch)
+    D = sound.get_env_dec(ch)
+    S = sound.get_env_sus(ch)
+    R = sound.get_env_rel(ch)
+    total = (A + D + R) or 1
+
+    a_w = rw * (A / total)
+    d_w = rw * (D / total)
+    r_w = rw * (R / total)
+
+    bottom = ry + rh
+    top = ry
+
+    pts = [
+        (rx,            bottom),
+        (rx + a_w,      top),
+        (rx + a_w + d_w, bottom - S * rh),
+        (rx + rw - r_w,  bottom - S * rh),
+        (rx + rw,        bottom),
+    ]
+    pygame.draw.lines(screen, green, False, pts, 1)
+
+
+def draw_filter_preview(screen, sound, wave_name):
+    *_, panel = _compute_panel_regions()
+    x, y, w, h = panel
+
+    pygame.draw.rect(screen, white, (x, y, w, h), 1)
+
+    rx = x + INNER_PADDING
+    ry = y + INNER_PADDING
+    rw = w - 2 * INNER_PADDING
+    rh = h - 2 * INNER_PADDING
+
+    # find channel
+    ch = next((c for c in sound.channels if c.waveform.name == wave_name), None)
+    if not ch:
+        return
+
+    vals = [
+        sound.get_filter_L(ch),
+        sound.get_filter_M(ch),
+        sound.get_filter_H(ch),
+    ]
+
+    # three vertical bars, equal spacing
+    bar_w = rw / 7
+    spacing = bar_w
+    for i, v in enumerate(vals):
+        bx = rx + spacing * (i + 1) + bar_w * i
+        bh = rh * v
+        by = ry + (rh - bh)
+        pygame.draw.rect(screen, green, (int(bx), int(by), int(bar_w), int(bh)))
+
+
+# update draw_screen:
 def draw_screen(screen, font, sound, wave_name, param_name):
     screen.fill(black)
     draw_texts(screen, font)
     draw_params(screen, font, sound)
     draw_box(screen, wave_name, param_name)
+
     draw_waveform_preview(screen, wave_name)
+    draw_envelope_preview(screen, sound, wave_name)
+    draw_filter_preview(screen, sound, wave_name)
+
     pygame.display.update()
