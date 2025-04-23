@@ -97,16 +97,16 @@ class Waveform:
     def generate_waveform(self):
         if self.name == "saw":
             return 2.0 * (self.t * self.frequency - np.floor(self.t * self.frequency + 0.5))
-        elif self.name == "sine":
+        elif self.name == "sin":
             return np.sin(2 * np.pi * self.frequency * self.t)
-        elif self.name == "square":
+        elif self.name == "sqr":
             return np.sign(np.sin(2 * np.pi * self.frequency * self.t))
         else:
             return np.zeros_like(self.t)
 
 
 class Envelope:
-    def __init__(self, attack_time=0, decay_time=0.2, sustain_level=0, release_time=0):
+    def __init__(self, attack_time=0, decay_time=0, sustain_level=1, release_time=0):
         self.attack_time = attack_time
         self.decay_time = decay_time
         self.sustain_level = sustain_level
@@ -156,12 +156,14 @@ class Filter:
 
 
 class Reverb:
-    def __init__(self, decay=0.5, delay=0.1, reflections=5):
+    def __init__(self, decay=0, delay=0, reflections=0):
         self.decay = decay
         self.delay = delay
         self.reflections = reflections
 
     def apply_reverb(self, wave, sample_rate):
+        if self.decay == 0:
+            return wave
         output = np.copy(wave)
         delay_samples = int(self.delay * sample_rate)
         for i in range(1, self.reflections + 1):
