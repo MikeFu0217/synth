@@ -31,6 +31,13 @@ GPIO.setmode(GPIO.BCM)
 for pin, cmd in button_pins.items():
     GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
+# Knob initialize
+knob_in0 = knob.KnobInput(cid=0)
+
+# ADC interrupt callback
+def on_knob_in0_voltage_change(voltage):
+    print(f"\n[ADC Interrupt] Voltage changed: {voltage:.3f} V")
+
 # Sound
 sound = Sound(sample_rate=44100)
 
@@ -109,6 +116,9 @@ running = True
 start_time = time.time()
 fixed_duration = 60  # Bail out after 30 seconds
 clock = pygame.time.Clock()
+
+knob_in0.last_time = time.time()
+knob_in0.last_voltage = knob_in0.channel.voltage
 try:
     while running:
         pitft.update()
@@ -133,8 +143,17 @@ try:
             #         print("Start displaying two collide!")
             #         SHOW_TWO_COLLIDE = True
 
+        # for knob input
+        now = time.time()
+        if now - knob_in0.last_time > knob_in0.poll_interval:
+            knob_in0.last_time = now
+            new_voltage = knob_in0.channel.voltage
+            if abs(new_voltage - knob_in0.last_voltage) > knob_in0.threshold:
+                knob_in0.last_voltage = new_voltage
+                on_knob_in0_voltage_change(new_voltage)
 
-        if (time.time() - start_time) > fixed_duration:
+
+        if (now - start_time) > fixed_duration:
             print('Timeout reached, exiting...')
             running = False
 
