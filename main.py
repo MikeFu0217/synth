@@ -8,10 +8,11 @@ from pygame.locals import *
 from channel import *
 from sound import *
 import view
+import knob
 
 # Set up the piTFT display
 os.putenv('SDL_VIDEODRIVER', 'fbcon')
-os.putenv('SDL_FBDEV', '/dev/fb0')
+os.putenv('SDL_FBDEV', '/dev/fb1')
 os.putenv('SDL_MOUSEDRV', 'dummy')
 os.putenv('SDL_MOUSEDEV', '/dev/null')
 os.putenv('DISPLAY','')
@@ -25,7 +26,7 @@ pygame.display.update()
 pygame.mouse.set_visible(False)
 
 # GPIO initialize
-button_pins = {17: "play", 22: "wave_sel", 23: "param_sel"}
+button_pins = {17: "play", 22: "wave_sel", 23: "param_sel_up", 27: "param_sel_down"}
 GPIO.setmode(GPIO.BCM)
 for pin, cmd in button_pins.items():
     GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -71,6 +72,8 @@ view.draw_texts(screen, font)
 view.draw_params(screen, font, sound)
 view.draw_box(screen, "saw", "vol")
 view.draw_waveform_preview(screen, "saw")
+view.draw_envelope_preview(screen, sound, "saw")
+view.draw_filter_preview(screen, sound, "saw")
 pygame.display.update()
 
 # GPIO callback function & event detection
@@ -89,10 +92,17 @@ GPIO.add_event_detect(22, GPIO.FALLING, callback=GPIO22_callback, bouncetime=300
 
 def GPIO23_callback(channel):
     global box_sel_idx
-    box_sel_idx[1] = (box_sel_idx[1] + 1) % len(param_names)
+    box_sel_idx[1] = (box_sel_idx[1] + len(param_names) - 1) % len(param_names)
     view.draw_screen(screen, font, sound, wave_names[box_sel_idx[0]], param_names[box_sel_idx[1]])
     print(f"Parameter selection changed to {param_names[box_sel_idx[1]]}")
 GPIO.add_event_detect(23, GPIO.FALLING, callback=GPIO23_callback, bouncetime=300)
+
+def GPIO27_callback(channel):
+    global box_sel_idx
+    box_sel_idx[1] = (box_sel_idx[1] + 1) % len(param_names)
+    view.draw_screen(screen, font, sound, wave_names[box_sel_idx[0]], param_names[box_sel_idx[1]])
+    print(f"Parameter selection changed to {param_names[box_sel_idx[1]]}")
+GPIO.add_event_detect(27, GPIO.FALLING, callback=GPIO27_callback, bouncetime=300)
 
 # Start process
 running = True

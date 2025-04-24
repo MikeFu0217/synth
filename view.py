@@ -50,10 +50,61 @@ def get_param_text_center(wave_name, param_name):
 
     return (x, y)
 
-def draw_param(screen, wave_name, param_name, value, font):
-    text = font.render(f'{value:.1f}', True, white)
-    rect = text.get_rect(center=get_param_text_center(wave_name, param_name))
-    screen.blit(text, rect)
+def draw_param(screen, wave_name, param_name, value, font, radius=5, zoom=False):
+    if zoom:
+        # Draw a knob for the parameter
+        draw_param_ring(screen, wave_name, param_name, value, font, radius)
+    else:
+        text = font.render(f'{value:.2f}', True, white)
+        rect = text.get_rect(center=get_param_text_center(wave_name, param_name))
+        screen.blit(text, rect)
+
+def draw_param_ring(screen, wave_name, param_name, value, font, radius=11):
+    """
+    Draw a knob for the given parameter:
+    - 'value' in [0,1] shown as a filled white sector.
+    - Sector starts at 6 o'clock and moves clockwise.
+    - Thin colored circle border indicates parameter group.
+    """
+    # determine center position for this (wave,param)
+    center = get_param_text_center(wave_name, param_name)
+
+    # calculate start angle (6 o'clock) and set up drawing resolution
+    start_angle = -math.pi / 2
+    steps = 60  # more steps = smoother sector fill
+
+    # pick a border color by parameter group
+    if param_name in ('vol', 'att', 'dec', 'sus', 'rel'):
+        border_color = (0, 255, 0)          # green for envelope/volume
+    elif param_name in ('L', 'M', 'H'):
+        border_color = (255, 165, 0)        # orange for filter bands
+    elif param_name in ('dec2', 'del', 'ref'):
+        border_color = (0, 191, 255)        # blue for reverb
+    else:
+        border_color = (255, 105, 180)      # pink fallback
+
+    # create a transparent surface just big enough for the knob
+    size = radius * 2 + 2
+    knob_surf = pygame.Surface((size, size), pygame.SRCALPHA)
+    cx, cy = radius + 1, radius + 1  # center of the knob on its surface
+
+    # draw full black circle background
+    pygame.draw.circle(knob_surf, black, (cx, cy), radius)
+
+    # draw white sector from 6 o'clock clockwise proportional to 'value'
+    for i in range(steps + 1):
+        t = i / steps
+        angle = start_angle - 2 * math.pi * t * value
+        x = cx + radius * math.cos(angle)
+        y = cy - radius * math.sin(angle)
+        pygame.draw.line(knob_surf, white, (cx, cy), (x, y), 1)
+
+    # draw the outer border
+    pygame.draw.circle(knob_surf, border_color, (cx, cy), radius, 1)
+
+    # blit the knob onto the main screen at its center position
+    knob_rect = knob_surf.get_rect(center=center)
+    screen.blit(knob_surf, knob_rect)
 
 def draw_params(screen, font, sound):
     for i, channel in enumerate(sound.channels):
