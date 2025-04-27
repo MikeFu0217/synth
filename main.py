@@ -12,7 +12,7 @@ import knob
 
 # Set up the piTFT display
 os.putenv('SDL_VIDEODRIVER', 'fbcon')
-os.putenv('SDL_FBDEV', '/dev/fb1')
+os.putenv('SDL_FBDEV', '/dev/fb0')
 os.putenv('SDL_MOUSEDRV', 'dummy')
 os.putenv('SDL_MOUSEDEV', '/dev/null')
 os.putenv('DISPLAY','')
@@ -33,10 +33,6 @@ for pin, cmd in button_pins.items():
 
 # Knob initialize
 knob_in0 = knob.KnobInput(cid=0)
-
-# ADC interrupt callback
-def on_knob_in0_voltage_change(voltage):
-    print(f"\n[ADC Interrupt] Voltage changed: {voltage:.3f} V")
 
 # Sound
 sound = Sound(sample_rate=44100)
@@ -111,6 +107,45 @@ def GPIO27_callback(channel):
     print(f"Parameter selection changed to {param_names[box_sel_idx[1]]}")
 GPIO.add_event_detect(27, GPIO.FALLING, callback=GPIO27_callback, bouncetime=300)
 
+# ADC interrupt callback
+def on_knob_in0_voltage_change(voltage):
+    print(f"\n[ADC Interrupt] Voltage changed: {voltage:.3f} V")
+
+    idx0, idx1 = box_sel_idx[0], box_sel_idx[1]
+    v = min(max(voltage, 0.), 3.3) / 3.3
+    cha = sound.channels[idx0]
+
+    if param_names[idx1] == "vol":
+        sound.volumes[idx0] = cha.vol_range[0] + v*(cha.vol_range[1])
+
+    elif param_names[idx1] == "att":
+        sound.channels[idx0].envelopes[0].attack_time = cha.env_att_range[0] + v*(cha.env_att_range[1])
+    elif param_names[idx1] == "dec":
+        sound.channels[idx0].envelopes[0].decay_time = cha.env_dec_range[0] + v*(cha.env_dec_range[1])
+    elif param_names[idx1] == "sus":
+        sound.channels[idx0].envelopes[0].sustain_level = cha.env_sus_range[0] + v*(cha.env_sus_range[1])
+    elif param_names[idx1] == "rel":
+        sound.channels[idx0].envelopes[0].release_time = cha.env_rel_range[0] + v*(cha.env_rel_range[1])
+
+    elif param_names[idx1] == "L":
+        sound.channels[idx0].filters[0].low = cha.filter_l_range[0] + v*(cha.filter_l_range[1])
+    elif param_names[idx1] == "M":
+        sound.channels[idx0].filters[0].mid = cha.filter_m_range[0] + v*(cha.filter_m_range[1])
+    elif param_names[idx1] == "H":
+        sound.channels[idx0].filters[0].high = cha.filter_h_range[0] + v*(cha.filter_h_range[1])
+
+    elif param_names[idx1] == "dec2":
+        sound.channels[idx0].reverbs[0].decay = cha.rev_dec_range[0] + v*(cha.rev_dec_range[1])
+    elif param_names[idx1] == "del":
+        sound.channels[idx0].reverbs[0].delay = cha.rev_del_range[0] + v*(cha.rev_del_range[1])
+    elif param_names[idx1] == "ref":
+        sound.channels[idx0].reverbs[0].reflections = int(cha.rev_ref_range[0] + v*(cha.rev_ref_range[1]))
+
+    else:
+        raise "False param index"
+    
+    view.draw_screen(screen, font, sound, wave_names[idx0], param_names[idx1])
+
 # Start process
 running = True
 start_time = time.time()
@@ -153,9 +188,9 @@ try:
                 on_knob_in0_voltage_change(new_voltage)
 
 
-        if (now - start_time) > fixed_duration:
-            print('Timeout reached, exiting...')
-            running = False
+        # if (now - start_time) > fixed_duration:
+        #     print('Timeout reached, exiting...')
+        #     running = False
 
 except KeyboardInterrupt:
     pass

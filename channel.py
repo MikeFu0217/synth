@@ -1,6 +1,8 @@
 import numpy as np
 import sounddevice as sd
 
+std_range = [0.0, 1.0]
+
 class Channel:
     def __init__(self, duration=2.0, sample_rate=44100):
         """
@@ -15,6 +17,21 @@ class Channel:
         self.envelopes = []
         self.filters = []
         self.reverbs = []
+
+        self.vol_range = [0.0, 1.0]
+
+        self.env_att_range = [0.0, 1.0]
+        self.env_dec_range = [0.0, 1.0]
+        self.env_sus_range = [0.0, 1.0]
+        self.env_rel_range = [0.0, 1.0]
+
+        self.filter_l_range = [0.0, 1.0]
+        self.filter_m_range = [0.0, 1.0]
+        self.filter_h_range = [0.0, 1.0]
+        
+        self.rev_dec_range = [0.0, 1.0]
+        self.rev_del_range = [0.0, 0.5]
+        self.rev_ref_range = [0, 20]
 
     def set_waveform(self, waveform):
         """
