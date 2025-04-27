@@ -80,11 +80,21 @@ view.draw_filter_preview(screen, sound, "saw")
 pygame.display.update()
 
 # GPIO callback function & event detection
-def GPIO17_callback(channel):
-    cmd = button_pins[17]
-    print(f"Button 17 has been pressed with command {cmd}")
-    sound.play()
-GPIO.add_event_detect(17, GPIO.FALLING, callback=GPIO17_callback, bouncetime=300)
+# def GPIO17_callback(channel):
+#     cmd = button_pins[17]
+#     print(f"Button 17 has been pressed with command {cmd}")
+#     sound.play()
+# GPIO.add_event_detect(17, GPIO.FALLING, callback=GPIO17_callback, bouncetime=300)
+# 按下开始 note_on
+def GPIO17_both_callback(pin):
+    # active-low 按键
+    if GPIO.input(pin) == GPIO.LOW:
+        print("key pressed")
+        sound.note_on()
+    else:
+        print("key released")
+        sound.note_off()
+GPIO.add_event_detect(17, GPIO.BOTH, callback=GPIO17_both_callback, bouncetime=5)
 
 def GPIO22_callback(channel):
     global box_sel_idx
