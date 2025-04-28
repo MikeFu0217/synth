@@ -5,6 +5,9 @@ import pygame, pigame
 import RPi.GPIO as GPIO
 from pygame.locals import *
 
+import numpy as np
+import sounddevice as sd
+
 from channel import *
 from sound import *
 import view
@@ -12,7 +15,7 @@ import knob
 
 # Set up the piTFT display
 os.putenv('SDL_VIDEODRIVER', 'fbcon')
-os.putenv('SDL_FBDEV', '/dev/fb0')
+os.putenv('SDL_FBDEV', '/dev/fb1')
 os.putenv('SDL_MOUSEDRV', 'dummy')
 os.putenv('SDL_MOUSEDEV', '/dev/null')
 os.putenv('DISPLAY','')
@@ -28,7 +31,7 @@ pygame.display.update()
 pygame.mouse.set_visible(False)
 
 # GPIO initialize
-button_pins = {17: "play", 22: "wave_sel", 23: "param_sel_up", 27: "param_sel_down"}
+button_pins = {17: "play", 22: "wave_sel", 23: "param_sel_up", 27: "param_sel_down", 19: "record_playback"}
 GPIO.setmode(GPIO.BCM)
 for pin, cmd in button_pins.items():
     GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -36,7 +39,7 @@ for pin, cmd in button_pins.items():
 # Knob initialize
 knob_in0 = knob.KnobInput(cid=0)
 
-# Sound
+# Sound setup
 sound = Sound(sr=SAMPLE_RATE)
 
 saw_wave = Waveform("saw", sr=SAMPLE_RATE)
@@ -63,16 +66,46 @@ sound.add_channel(channel1)
 sound.add_channel(channel2)
 sound.add_channel(channel3)
 
-# View
+# View setup
 font = pygame.font.Font(None, 25)
 box_sel_idx = [0, 0]
 wave_names = ["saw", "sin", "sqr"]
 param_names = ["vol", "att", "dec", "sus", "rel", "L", "M", "H", "dec2", "del", "wet"]
 
-# Initial screen
 view.draw_screen(screen, font, sound, "saw", "vol")
 
-# GPIO callback functions
+# Recording/playback state
+dirty = False
+record_state = 0       # 0=idle, 1=recording, 3=playback
+record_frames = []     # list of numpy arrays
+playback_buffer = None
+playback_pos = 0
+
+# GPIO callbacks
+def GPIO19_callback(channel):
+    global record_state, record_frames, playback_buffer, playback_pos
+    time.sleep(0.05)
+    if record_state == 0:
+        # start recording
+        record_frames = []
+        record_state = 1
+        print("\nRecording started")
+    elif record_state == 1:
+        # stop recording
+        if record_frames:
+            playback_buffer = np.concatenate(record_frames, axis=0).flatten()
+        else:
+            playback_buffer = np.array([], dtype='float32')
+        playback_pos = 0
+        record_state = 2
+        print("\nRecording stopped")
+    elif record_state == 2:
+        # start playback
+        record_state = 3
+        print("\nStart playback")
+
+GPIO.add_event_detect(19, GPIO.FALLING, callback=GPIO19_callback, bouncetime=300)
+
 def GPIO17_callback(channel):
     if GPIO.input(17) == GPIO.LOW:
         sound.note_on()
@@ -83,54 +116,40 @@ def GPIO17_callback(channel):
 GPIO.add_event_detect(17, GPIO.BOTH, callback=GPIO17_callback, bouncetime=10)
 
 def GPIO22_callback(channel):
-    global box_sel_idx, needs_redraw
+    global box_sel_idx, dirty
     box_sel_idx[0] = (box_sel_idx[0] + 1) % len(wave_names)
-    needs_redraw = True
+    dirty = True
     print(f"Waveform selection changed to {wave_names[box_sel_idx[0]]}")
 GPIO.add_event_detect(22, GPIO.FALLING, callback=GPIO22_callback, bouncetime=300)
 
 def GPIO23_callback(channel):
-    global box_sel_idx, needs_redraw
-    box_sel_idx[1] = (box_sel_idx[1] + len(param_names) - 1) % len(param_names)
-    needs_redraw = True
+    global box_sel_idx, dirty
+    box_sel_idx[1] = (box_sel_idx[1] - 1) % len(param_names)
+    dirty = True
     print(f"Parameter selection changed to {param_names[box_sel_idx[1]]}")
 GPIO.add_event_detect(23, GPIO.FALLING, callback=GPIO23_callback, bouncetime=300)
 
 def GPIO27_callback(channel):
-    global box_sel_idx, needs_redraw
+    global box_sel_idx, dirty
     box_sel_idx[1] = (box_sel_idx[1] + 1) % len(param_names)
-    needs_redraw = True
+    dirty = True
     print(f"Parameter selection changed to {param_names[box_sel_idx[1]]}")
 GPIO.add_event_detect(27, GPIO.FALLING, callback=GPIO27_callback, bouncetime=300)
 
-# ADC interrupt callback
-QUANT_STEPS = {
-    'vol': 100,
-    'att': 100,
-    'dec': 100,
-    'sus': 100,
-    'rel': 100,
-    'L':   100,
-    'M':   100,
-    'H':   100,
-    'dec2': 50,
-    'del':  50,
-    'wet':  50,
-}
+# Knob voltage change callback (unchanged)
+QUANT_STEPS = {'vol':100,'att':100,'dec':100,'sus':100,'rel':100,'L':100,'M':100,'H':100,'dec2':50,'del':50,'wet':50}
+
 def set_quantized(obj, attr, range_list, v, steps):
     min_r, span = range_list
     vq = round(v * steps) / steps
     setattr(obj, attr, min_r + vq * span)
 
 def on_knob_in0_voltage_change(voltage):
-    global needs_redraw
-
+    global dirty
     v = min(max(voltage, 0.0), 3.3) / 3.3
-
     cha   = sound.channels[box_sel_idx[0]]
     key   = param_names[box_sel_idx[1]]
     steps = QUANT_STEPS.get(key, 100)
-
     PARAM_MAP = {
         'vol':  (cha,                'volume',        cha.vol_range),
         'att':  (cha.envelopes[0],   'attack_time',   cha.env_att_range),
@@ -144,56 +163,67 @@ def on_knob_in0_voltage_change(voltage):
         'del':  (cha.reverbs[0],     'delay',         cha.rev_del_range),
         'wet':  (cha.reverbs[0],     'wet',           cha.rev_wet_range),
     }
-
     if key not in PARAM_MAP:
         raise ValueError(f"Unknown index: {key}")
-
     target, attr, range_list = PARAM_MAP[key]
     set_quantized(target, attr, range_list, v, steps)
+    dirty = True
 
-    needs_redraw = True
-
-# Start process
-running = True
-needs_redraw = True
-clock = pygame.time.Clock()
-
-knob_in0.last_time = time.time()
-knob_in0.last_voltage = knob_in0.channel.voltage
-
-# Audio callback
+# Audio callback with integrated recording & playback
 def audio_callback(outdata, frames, time_info, status):
-    """PortAudio callback: process Channel."""
+    global record_state, record_frames, playback_buffer, playback_pos
+    # recording phase: capture synth output
+    if record_state == 1:
+        sig = sound.process(frames)
+        record_frames.append(sig.copy())
+        outdata[:,0] = np.clip(sig, -1.0, 1.0)
+        return
+    # playback recorded data
+    if record_state == 3 and playback_buffer is not None:
+        start = playback_pos
+        end   = start + frames
+        chunk = playback_buffer[start:end]
+        if len(chunk) < frames:
+            outdata[:len(chunk),0] = chunk
+            outdata[len(chunk):,0] = 0
+            record_state = 0
+            playback_buffer = None
+            print("Playback finished")
+        else:
+            outdata[:,0] = chunk
+            playback_pos += frames
+        return
+    # normal synthesis output
     sig = sound.process(frames)
     outdata[:,0] = np.clip(sig, -1.0, 1.0)
 
 # Main loop
+running = True
+dirty = True
+clock = pygame.time.Clock()
+knob_in0.last_time = time.time()
+knob_in0.last_voltage = knob_in0.channel.voltage
+
 with sd.OutputStream(samplerate=SAMPLE_RATE, channels=1, dtype='float32', callback=audio_callback):
     try:
         while running:
-            now = time.time()
-
-            # slight pygame event loop
             for event in pygame.event.get():
                 if event.type == QUIT:
                     running = False
-
             # knob polling
+            now = time.time()
             if now - knob_in0.last_time > knob_in0.poll_interval:
                 knob_in0.last_time = now
                 new_voltage = knob_in0.channel.voltage
                 if abs(new_voltage - knob_in0.last_voltage) > knob_in0.threshold:
                     knob_in0.last_voltage = new_voltage
                     on_knob_in0_voltage_change(new_voltage)
-
             # redraw if needed
-            if needs_redraw:
+            if dirty:
                 view.draw_screen(screen, font, sound, wave_names[box_sel_idx[0]], param_names[box_sel_idx[1]])
-                needs_redraw = False
-
+                dirty = False
             clock.tick(30)
-
     except KeyboardInterrupt:
         pass
     finally:
-        del(pitft)
+        del pitft
