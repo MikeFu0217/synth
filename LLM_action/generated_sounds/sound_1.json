@@ -1,0 +1,31 @@
+{
+  "description": "A 2-second punchy square wave sound at 330Hz with fast attack and strong reverb.",
+  "playback_duration": 2.0,
+  "channels": [
+    {
+      "waveform": {
+        "name": "square",
+        "frequency": 330.0,
+        "duration": 2.0,
+        "sample_rate": 44100
+      },
+      "envelope": {
+        "attack_time": 0.05,
+        "decay_time": 0.2,
+        "sustain_level": 0.8,
+        "release_time": 0.2
+      },
+      "filter": {
+        "low": 800.0,
+        "mid": 2000.0,
+        "high": 5000.0
+      },
+      "reverb": {
+        "decay": 1.2,
+        "delay": 0.1,
+        "reflections": 20
+      },
+      "volume": 1.0
+    }
+  ]
+}
