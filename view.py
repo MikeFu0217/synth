@@ -7,9 +7,6 @@ size = width, height = 320, 240
 white = (255, 255, 255)
 black = (0, 0, 0)
 
-def initialize_view(screen):
-    screen.fill(black)
-
 # Draw
 def get_param_text_center(wave_name, param_name):
     x = None
@@ -43,7 +40,7 @@ def get_param_text_center(wave_name, param_name):
         y = height // 16 * 13
     elif param_name == 'del':
         y = height // 16 * 14
-    elif param_name == 'ref':
+    elif param_name == 'wet':
         y = height // 16 * 15
     else:
         raise ValueError("Invalid parameter name")
@@ -107,40 +104,29 @@ def draw_param_ring(screen, wave_name, param_name, value, font, radius=11):
     screen.blit(knob_surf, knob_rect)
 
 def draw_params(screen, font, sound):
-    for i, channel in enumerate(sound.channels):
+    for channel in sound.channels:
         # Draw volume
-        volume = sound.get_volume(channel)
-        draw_param(screen, channel.waveform.name, 'vol', volume, font)
+        draw_param(screen, channel.waveform.name, 'vol', channel.volume, font)
         # Draw env_att
-        env_att = sound.get_env_att(channel)
-        draw_param(screen, channel.waveform.name, 'att', env_att, font)
+        draw_param(screen, channel.waveform.name, 'att', channel.envelopes[0].attack_time, font)
         # Draw env_dec
-        env_dec = sound.get_env_dec(channel)
-        draw_param(screen, channel.waveform.name, 'dec', env_dec, font)
+        draw_param(screen, channel.waveform.name, 'dec', channel.envelopes[0].decay_time, font)
         # Draw env_sus
-        env_sus = sound.get_env_sus(channel)
-        draw_param(screen, channel.waveform.name, 'sus', env_sus, font)
+        draw_param(screen, channel.waveform.name, 'sus', channel.envelopes[0].sustain_level, font)
         # Draw env_rel
-        env_rel = sound.get_env_rel(channel)
-        draw_param(screen, channel.waveform.name, 'rel', env_rel, font)
+        draw_param(screen, channel.waveform.name, 'rel', channel.envelopes[0].release_time, font)
         # Draw filter_L
-        filter_L = sound.get_filter_L(channel)
-        draw_param(screen, channel.waveform.name, 'L', filter_L, font)
+        draw_param(screen, channel.waveform.name, 'L', channel.filters[0].low, font)
         # Draw filter_M
-        filter_M = sound.get_filter_M(channel)
-        draw_param(screen, channel.waveform.name, 'M', filter_M, font)
+        draw_param(screen, channel.waveform.name, 'M', channel.filters[0].mid, font)
         # Draw filter_H
-        filter_H = sound.get_filter_H(channel)
-        draw_param(screen, channel.waveform.name, 'H', filter_H, font)
+        draw_param(screen, channel.waveform.name, 'H', channel.filters[0].high, font)
         # Draw reverb_dec
-        reverb_dec = sound.get_reverb_dec(channel)
-        draw_param(screen, channel.waveform.name, 'dec2', reverb_dec, font)
+        draw_param(screen, channel.waveform.name, 'dec2', channel.reverbs[0].decay, font)
         # Draw reverb_del
-        reverb_del = sound.get_reverb_del(channel)
-        draw_param(screen, channel.waveform.name, 'del', reverb_del, font)
+        draw_param(screen, channel.waveform.name, 'del', channel.reverbs[0].delay, font)
         # Draw reverb_ref
-        reverb_ref = sound.get_reverb_ref(channel)
-        draw_param(screen, channel.waveform.name, 'ref', reverb_ref, font)
+        draw_param(screen, channel.waveform.name, 'wet', channel.reverbs[0].wet, font)
 
 def draw_texts(screen, font):
     text_saw = font.render('saw', True, white)
@@ -186,7 +172,7 @@ def draw_texts(screen, font):
     text_del = font.render('del', True, white)
     rect_del = text_del.get_rect(center=(width // 9 * 1, height // 16 * 14))
     screen.blit(text_del, rect_del)
-    text_ref = font.render('ref', True, white)
+    text_ref = font.render('wet', True, white)
     rect_ref = text_ref.get_rect(center=(width // 9 * 1, height // 16 * 15))
     screen.blit(text_ref, rect_ref)
 
@@ -292,10 +278,10 @@ def draw_envelope_preview(screen, sound, wave_name):
     if not ch:
         return
 
-    A = sound.get_env_att(ch)
-    D = sound.get_env_dec(ch)
-    S = sound.get_env_sus(ch)
-    R = sound.get_env_rel(ch)
+    A = ch.envelopes[0].attack_time
+    D = ch.envelopes[0].decay_time
+    S = ch.envelopes[0].sustain_level
+    R = ch.envelopes[0].release_time
     total = (A + D + R) or 1
 
     a_w = rw * (A / total)
@@ -332,9 +318,9 @@ def draw_filter_preview(screen, sound, wave_name):
         return
 
     vals = [
-        sound.get_filter_L(ch),
-        sound.get_filter_M(ch),
-        sound.get_filter_H(ch),
+        ch.filters[0].low,
+        ch.filters[0].mid,
+        ch.filters[0].high,
     ]
 
     # three vertical bars, equal spacing
