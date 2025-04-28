@@ -78,7 +78,7 @@ class Waveform:
             raise ValueError(f"Unknown waveform '{name}'")
 
 class Envelope:
-    def __init__(self, sr=44100, attack=0.0, decay=0.0, sustain=1.0, release=0.0):
+    def __init__(self, sr=44100, attack=0.2, decay=0.3, sustain=0.5, release=0.4):
         self.sr = sr
         self.attack_time = attack
         self.decay_time = decay
@@ -87,7 +87,7 @@ class Envelope:
 
         self.state = 'idle'
         self.progress = 0.0
-        self.current_amp = 0.0  # 当前真正输出的振幅
+        self.current_amp = 0.0
 
         self.update_samples()
 
@@ -105,7 +105,7 @@ class Envelope:
         if self.state in ('attack', 'decay', 'sustain'):
             self.state = 'release'
             self.progress = 0.0
-            self.start_amp = self.current_amp  # release阶段要从当前电平开始下降
+            self.start_amp = self.current_amp
             self.update_samples()
 
     def process(self, frames):
@@ -143,6 +143,8 @@ class Envelope:
             else:
                 env[i] = 0.0
 
+        print(f"\rState: {self.state}\t, Progress: {self.progress:.4f}, Current Amp: {self.current_amp:.4f}", end="")
+
         return env
 
 class Filter:
@@ -169,7 +171,7 @@ class Reverb:
         self.reflections = reflections
         self.wet = wet
         self.sr = sr
-        self.buffer = np.zeros(sr // 2)  # 新增：一个小buffer，大概0.5秒
+        self.buffer = np.zeros(sr // 2)
 
     def apply(self, signal):
         out = np.copy(signal)
@@ -189,12 +191,11 @@ class Reverb:
             if real_idx < len(signal):
                 out[real_idx:] += signal[:-real_idx] * (self.decay ** i) * 2.0
 
-        # --- 这里做最重要的buffer叠加
         buffer_len = len(self.buffer)
         min_len = min(buffer_len, len(out))
-        out[:min_len] += self.buffer[:min_len] * 0.5  # 加入历史的混响尾巴
+        out[:min_len] += self.buffer[:min_len] * 0.5
 
-        # 更新buffer，把这次的out接着存到buffer里
+
         self.buffer = np.roll(self.buffer, -len(signal))
         self.buffer[-len(signal):] = out
 

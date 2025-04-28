@@ -9,9 +9,6 @@ from channel import *
 from sound import *
 import view
 import knob
-from audiothread import AudioThread
-
-import threading  # 加这个
 
 # Set up the piTFT display
 os.putenv('SDL_VIDEODRIVER', 'fbcon')
@@ -66,9 +63,6 @@ sound.add_channel(channel1)
 sound.add_channel(channel2)
 sound.add_channel(channel3)
 
-# NOTE flag
-note_event = threading.Event()
-
 # View
 font = pygame.font.Font(None, 25)
 box_sel_idx = [0, 0]
@@ -81,12 +75,12 @@ view.draw_screen(screen, font, sound, "saw", "vol")
 # GPIO callback functions
 def GPIO17_callback(channel):
     if GPIO.input(17) == GPIO.LOW:
-        note_event.set()
-        print("Note key pressed")
+        sound.note_on()
+        print("\nNote key pressed")
     else:
-        note_event.clear()
-        print("Note key released")
-GPIO.add_event_detect(17, GPIO.BOTH, callback=GPIO17_callback, bouncetime=50)
+        sound.note_off()
+        print("\nNote key released")
+GPIO.add_event_detect(17, GPIO.BOTH, callback=GPIO17_callback, bouncetime=10)
 
 def GPIO22_callback(channel):
     global box_sel_idx, needs_redraw
@@ -167,36 +161,39 @@ clock = pygame.time.Clock()
 knob_in0.last_time = time.time()
 knob_in0.last_voltage = knob_in0.channel.voltage
 
-audio_thread = AudioThread(sound, note_event, samplerate=SAMPLE_RATE)
-audio_thread.start()
+# Audio callback
+def audio_callback(outdata, frames, time_info, status):
+    """PortAudio callback: process Channel."""
+    sig = sound.process(frames)
+    outdata[:,0] = np.clip(sig, -1.0, 1.0)
 
-try:
-    while running:
-        now = time.time()
+# Main loop
+with sd.OutputStream(samplerate=SAMPLE_RATE, channels=1, dtype='float32', callback=audio_callback):
+    try:
+        while running:
+            now = time.time()
 
-        # slight pygame event loop
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                running = False
+            # slight pygame event loop
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    running = False
 
-        # knob polling
-        if now - knob_in0.last_time > knob_in0.poll_interval:
-            knob_in0.last_time = now
-            new_voltage = knob_in0.channel.voltage
-            if abs(new_voltage - knob_in0.last_voltage) > knob_in0.threshold:
-                knob_in0.last_voltage = new_voltage
-                on_knob_in0_voltage_change(new_voltage)
+            # knob polling
+            if now - knob_in0.last_time > knob_in0.poll_interval:
+                knob_in0.last_time = now
+                new_voltage = knob_in0.channel.voltage
+                if abs(new_voltage - knob_in0.last_voltage) > knob_in0.threshold:
+                    knob_in0.last_voltage = new_voltage
+                    on_knob_in0_voltage_change(new_voltage)
 
-        # redraw if needed
-        if needs_redraw:
-            view.draw_screen(screen, font, sound, wave_names[box_sel_idx[0]], param_names[box_sel_idx[1]])
-            needs_redraw = False
+            # redraw if needed
+            if needs_redraw:
+                view.draw_screen(screen, font, sound, wave_names[box_sel_idx[0]], param_names[box_sel_idx[1]])
+                needs_redraw = False
 
-        clock.tick(30)
+            clock.tick(30)
 
-except KeyboardInterrupt:
-    pass
-finally:
-    audio_thread.stop()
-    audio_thread.join()
-    del(pitft)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        del(pitft)
