@@ -1,5 +1,5 @@
 {
-  "description": "An energetic 2.5-second audio loop consisting of two square waveforms at 330Hz and 660Hz, with quick envelopes and echo",
+  "description": "A 2.5-second energetic loop using two square waves at 330Hz and 660Hz with quick envelopes and echo.",
   "playback_duration": 2.5,
   "channels": [
     {
@@ -10,22 +10,22 @@
         "sample_rate": 44100
       },
       "envelope": {
-        "attack_time": 0.1,
-        "decay_time": 0.1,
+        "attack_time": 0.01,
+        "decay_time": 0.2,
         "sustain_level": 0.8,
-        "release_time": 0.3
+        "release_time": 0.01
       },
       "filter": {
-        "low": 600,
-        "mid": 3000,
-        "high": 5000
+        "low": 1000,
+        "mid": 2000,
+        "high": 8000
       },
       "reverb": {
-        "decay": 0.6,
-        "delay": 0.2,
-        "reflections": 10
+        "decay": 1.2,
+        "delay": 0.01,
+        "reflections": 2
       },
-      "volume": 0.7
+      "volume": 1
     },
     {
       "waveform": {
@@ -35,22 +35,22 @@
         "sample_rate": 44100
       },
       "envelope": {
-        "attack_time": 0.1,
-        "decay_time": 0.1,
+        "attack_time": 0.01,
+        "decay_time": 0.2,
         "sustain_level": 0.8,
-        "release_time": 0.3
+        "release_time": 0.01
       },
       "filter": {
-        "low": 600,
-        "mid": 3000,
-        "high": 5000
+        "low": 1000,
+        "mid": 2000,
+        "high": 8000
       },
       "reverb": {
-        "decay": 0.6,
-        "delay": 0.2,
-        "reflections": 10
+        "decay": 1.2,
+        "delay": 0.01,
+        "reflections": 2
       },
-      "volume": 0.7
+      "volume": 1
     }
   ]
 }

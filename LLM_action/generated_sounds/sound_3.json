@@ -1,5 +1,5 @@
 {
-  "description": "A 1.5-second audio with a louder 440Hz saw wave and a 220Hz square wave",
+  "description": "1.5-second polyphonic sound with a 440Hz saw wave and a 220Hz square wave, with the saw wave at a higher volume",
   "playback_duration": 1.5,
   "channels": [
     {
@@ -10,22 +10,22 @@
         "sample_rate": 44100
       },
       "envelope": {
-        "attack_time": 0.01,
-        "decay_time": 0.1,
+        "attack_time": 0.1,
+        "decay_time": 0.2,
         "sustain_level": 0.8,
-        "release_time": 0.1
+        "release_time": 0.4
       },
       "filter": {
-        "low": 500,
-        "mid": 2000,
-        "high": 8000
+        "low": 200,
+        "mid": 1000,
+        "high": 5000
       },
       "reverb": {
         "decay": 0.5,
-        "delay": 0.01,
-        "reflections": 4
+        "delay": 0.2,
+        "reflections": 10
       },
-      "volume": 0.8
+      "volume": 1.0
     },
     {
       "waveform": {
@@ -35,22 +35,22 @@
         "sample_rate": 44100
       },
       "envelope": {
-        "attack_time": 0.01,
-        "decay_time": 0.1,
-        "sustain_level": 0.8,
-        "release_time": 0.1
+        "attack_time": 0.1,
+        "decay_time": 0.2,
+        "sustain_level": 0.6,
+        "release_time": 0.3
       },
       "filter": {
-        "low": 500,
-        "mid": 2000,
-        "high": 8000
+        "low": 200,
+        "mid": 1000,
+        "high": 5000
       },
       "reverb": {
         "decay": 0.5,
-        "delay": 0.01,
-        "reflections": 4
+        "delay": 0.2,
+        "reflections": 10
       },
-      "volume": 0.6
+      "volume": 0.8
     }
   ]
 }
