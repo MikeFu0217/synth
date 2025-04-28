@@ -1,0 +1,56 @@
+{
+  "description": "An energetic 2.5-second audio loop consisting of two square waveforms at 330Hz and 660Hz, with quick envelopes and echo",
+  "playback_duration": 2.5,
+  "channels": [
+    {
+      "waveform": {
+        "name": "square",
+        "frequency": 330,
+        "duration": 2.5,
+        "sample_rate": 44100
+      },
+      "envelope": {
+        "attack_time": 0.1,
+        "decay_time": 0.1,
+        "sustain_level": 0.8,
+        "release_time": 0.3
+      },
+      "filter": {
+        "low": 600,
+        "mid": 3000,
+        "high": 5000
+      },
+      "reverb": {
+        "decay": 0.6,
+        "delay": 0.2,
+        "reflections": 10
+      },
+      "volume": 0.7
+    },
+    {
+      "waveform": {
+        "name": "square",
+        "frequency": 660,
+        "duration": 2.5,
+        "sample_rate": 44100
+      },
+      "envelope": {
+        "attack_time": 0.1,
+        "decay_time": 0.1,
+        "sustain_level": 0.8,
+        "release_time": 0.3
+      },
+      "filter": {
+        "low": 600,
+        "mid": 3000,
+        "high": 5000
+      },
+      "reverb": {
+        "decay": 0.6,
+        "delay": 0.2,
+        "reflections": 10
+      },
+      "volume": 0.7
+    }
+  ]
+}

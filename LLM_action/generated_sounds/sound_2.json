@@ -1,0 +1,56 @@
+{
+  "description": "A 3-second dreamy combination of sine and triangle waves, designed to create an ambient atmosphere",
+  "playback_duration": 3.0,
+  "channels": [
+    {
+      "waveform": {
+        "name": "sine",
+        "frequency": 440.0,
+        "duration": 3.0,
+        "sample_rate": 44100
+      },
+      "envelope": {
+        "attack_time": 0.1,
+        "decay_time": 0.2,
+        "sustain_level": 0.7,
+        "release_time": 0.5
+      },
+      "filter": {
+        "low": 500.0,
+        "mid": 2000.0,
+        "high": 5000.0
+      },
+      "reverb": {
+        "decay": 2.5,
+        "delay": 0.01,
+        "reflections": 5
+      },
+      "volume": 0.5
+    },
+    {
+      "waveform": {
+        "name": "triangle",
+        "frequency": 220.0,
+        "duration": 3.0,
+        "sample_rate": 44100
+      },
+      "envelope": {
+        "attack_time": 0.2,
+        "decay_time": 0.5,
+        "sustain_level": 0.6,
+        "release_time": 0.7
+      },
+      "filter": {
+        "low": 400.0,
+        "mid": 1600.0,
+        "high": 4000.0
+      },
+      "reverb": {
+        "decay": 2.7,
+        "delay": 0.02,
+        "reflections": 7
+      },
+      "volume": 0.4
+    }
+  ]
+}

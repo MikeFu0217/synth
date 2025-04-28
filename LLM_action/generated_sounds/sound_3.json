@@ -1,55 +1,56 @@
 {
-  "description": "Two-channel sound with a 440Hz saw wave and a 220Hz square wave, the saw being louder",
+  "description": "A 1.5-second audio with a louder 440Hz saw wave and a 220Hz square wave",
+  "playback_duration": 1.5,
   "channels": [
     {
       "waveform": {
         "name": "saw",
-        "frequency": 440.0,
-        "duration": 1.0,
+        "frequency": 440,
+        "duration": 1.5,
         "sample_rate": 44100
       },
       "envelope": {
         "attack_time": 0.01,
-        "decay_time": 0.2,
+        "decay_time": 0.1,
         "sustain_level": 0.8,
         "release_time": 0.1
       },
       "filter": {
-        "low": 200.0,
-        "mid": 1000.0,
-        "high": 5000.0
+        "low": 500,
+        "mid": 2000,
+        "high": 8000
       },
       "reverb": {
-        "decay": 0.3,
+        "decay": 0.5,
         "delay": 0.01,
-        "reflections": 3
+        "reflections": 4
       },
       "volume": 0.8
     },
     {
       "waveform": {
         "name": "square",
-        "frequency": 220.0,
-        "duration": 1.0,
+        "frequency": 220,
+        "duration": 1.5,
         "sample_rate": 44100
       },
       "envelope": {
         "attack_time": 0.01,
-        "decay_time": 0.2,
-        "sustain_level": 0.9,
+        "decay_time": 0.1,
+        "sustain_level": 0.8,
         "release_time": 0.1
       },
       "filter": {
-        "low": 200.0,
-        "mid": 1000.0,
-        "high": 5000.0
+        "low": 500,
+        "mid": 2000,
+        "high": 8000
       },
       "reverb": {
-        "decay": 0.3,
+        "decay": 0.5,
         "delay": 0.01,
-        "reflections": 3
+        "reflections": 4
       },
-      "volume": 0.5
+      "volume": 0.6
     }
   ]
 }
