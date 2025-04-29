@@ -15,7 +15,7 @@ import knob
 
 # Set up the piTFT display
 os.putenv('SDL_VIDEODRIVER', 'fbcon')
-os.putenv('SDL_FBDEV', '/dev/fb1')
+os.putenv('SDL_FBDEV', '/dev/fb0')
 os.putenv('SDL_MOUSEDRV', 'dummy')
 os.putenv('SDL_MOUSEDEV', '/dev/null')
 os.putenv('DISPLAY','')
@@ -103,8 +103,11 @@ def GPIO19_callback(channel):
         # start playback
         record_state = 3
         print("\nStart playback")
-
 GPIO.add_event_detect(19, GPIO.FALLING, callback=GPIO19_callback, bouncetime=300)
+
+def GPIO26_callback(channel):
+    pass
+GPIO.add_event_detect(26, GPIO.FALLING, callback=GPIO26_callback, bouncetime=300)
 
 def GPIO17_callback(channel):
     if GPIO.input(17) == GPIO.LOW:
