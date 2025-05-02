@@ -4,6 +4,7 @@ import time
 import pygame, pigame
 import RPi.GPIO as GPIO
 from pygame.locals import *
+import threading
 
 import numpy as np
 import sounddevice as sd
@@ -12,6 +13,7 @@ from channel import *
 from sound import *
 import view
 import knob
+import reaction
 
 # Set up the piTFT display
 os.putenv('SDL_VIDEODRIVER', 'fbcon')
@@ -31,7 +33,7 @@ pygame.display.update()
 pygame.mouse.set_visible(False)
 
 # GPIO initialize
-button_pins = {17: "play", 22: "wave_sel", 23: "param_sel_up", 27: "param_sel_down", 19: "record_playback"}
+button_pins = {17: "play", 22: "wave_sel", 23: "param_sel_up", 27: "param_sel_down", 19: "record_playback", 26: "AI"}
 GPIO.setmode(GPIO.BCM)
 for pin, cmd in button_pins.items():
     GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -81,8 +83,73 @@ record_frames = []     # list of numpy arrays
 playback_buffer = None
 playback_pos = 0
 
+# AI setup
+AI_state = "idle"
+exit_event = threading.Event()
+api_key_path = ".openai_api_key"
+llm = reaction.LLMClient(api_key_path=api_key_path)
+with open(api_key_path) as f:
+    api_key = f.read().strip()
+stt = reaction.SpeechToTextLocal(
+    model_path="/home/pi/vosk_models/vosk-model-small-en-us-0.15",
+    samplerate=44100,
+    threshold=0.02,
+    silence_duration=1.0,
+    max_record_time=30.0
+)
+tts = reaction.TextToSpeech()
+
+def ai_conversation_loop():
+    """
+    Runs in its own thread.  
+    Cycles: silence → listen → speak → silence …  
+    Exits immediately if exit_event is set.
+    """
+    global AI_state, dirty
+
+    while not exit_event.is_set():
+        if AI_state == "silence":
+            dirty = True
+            AI_state = "listen"
+            continue
+
+        if AI_state == "listen":
+            dirty = True
+            try:
+                user_text = stt.record_and_transcribe()
+            except Exception:
+                user_text = ""
+            # if user presses GPIO26 mid-record, we still finish record_and_transcribe,
+            # but the moment it returns we'll see exit_event and break.
+            if exit_event.is_set():
+                break
+
+            if user_text.strip().lower() == "quit":
+                tts.speak("Quitting AI assistant.")
+                break
+
+            AI_state = "speak"
+            continue
+
+        if AI_state == "speak":
+            dirty = True
+            response_text = f"I heard you say: {user_text}"
+            tts.speak(response_text)
+            if exit_event.is_set():
+                break
+            AI_state = "silence"
+            continue
+
+        # small sleep so we don't tight-spin if state is unexpected
+        time.sleep(0.05)
+
+    # cleanup on exit
+    AI_state = "idle"
+    dirty = True
+
 # GPIO callbacks
 def GPIO19_callback(channel):
+    # Record/Playback button callback
     global record_state, record_frames, playback_buffer, playback_pos
     time.sleep(0.05)
     if record_state == 0:
@@ -106,10 +173,34 @@ def GPIO19_callback(channel):
 GPIO.add_event_detect(19, GPIO.FALLING, callback=GPIO19_callback, bouncetime=300)
 
 def GPIO26_callback(channel):
-    pass
+    """
+    Light callback: toggle AI mode on/off, signal the worker thread.
+    """
+    global AI_state, dirty
+
+    time.sleep(0.05)
+
+    # entering AI mode?
+    if AI_state == "idle":
+        exit_event.clear()           # ensure the flag is off
+        AI_state = "silence"
+        dirty = True
+        # start the daemon thread
+        t = threading.Thread(target=ai_conversation_loop, daemon=True)
+        t.start()
+
+    # exiting AI mode?
+    else:
+        exit_event.set()             # tell the thread to stop ASAP
+        print("Exiting AI mode")
+        # thread will reset AI_state to 'idle' on its own
+        # but we can force it right away
+        AI_state = "idle"
+        dirty = True
 GPIO.add_event_detect(26, GPIO.FALLING, callback=GPIO26_callback, bouncetime=300)
 
 def GPIO17_callback(channel):
+    # Play/Stop button callback
     if GPIO.input(17) == GPIO.LOW:
         sound.note_on()
         print("\nNote key pressed")
@@ -119,6 +210,7 @@ def GPIO17_callback(channel):
 GPIO.add_event_detect(17, GPIO.BOTH, callback=GPIO17_callback, bouncetime=10)
 
 def GPIO22_callback(channel):
+    # Waveform selection button callback
     global box_sel_idx, dirty
     box_sel_idx[0] = (box_sel_idx[0] + 1) % len(wave_names)
     dirty = True
@@ -126,6 +218,7 @@ def GPIO22_callback(channel):
 GPIO.add_event_detect(22, GPIO.FALLING, callback=GPIO22_callback, bouncetime=300)
 
 def GPIO23_callback(channel):
+    # Parameter selection up button callback
     global box_sel_idx, dirty
     box_sel_idx[1] = (box_sel_idx[1] - 1) % len(param_names)
     dirty = True
@@ -133,6 +226,7 @@ def GPIO23_callback(channel):
 GPIO.add_event_detect(23, GPIO.FALLING, callback=GPIO23_callback, bouncetime=300)
 
 def GPIO27_callback(channel):
+    # Parameter selection down button callback
     global box_sel_idx, dirty
     box_sel_idx[1] = (box_sel_idx[1] + 1) % len(param_names)
     dirty = True
@@ -148,6 +242,8 @@ def set_quantized(obj, attr, range_list, v, steps):
     setattr(obj, attr, min_r + vq * span)
 
 def on_knob_in0_voltage_change(voltage):
+    # Set the voltage to a value between 0.0 and 3.3
+    # and map it to the parameter range
     global dirty
     v = min(max(voltage, 0.0), 3.3) / 3.3
     cha   = sound.channels[box_sel_idx[0]]
@@ -222,10 +318,13 @@ with sd.OutputStream(samplerate=SAMPLE_RATE, channels=1, dtype='float32', callba
                     knob_in0.last_voltage = new_voltage
                     on_knob_in0_voltage_change(new_voltage)
             # redraw if needed
-            if dirty:
-                view.draw_screen(screen, font, sound, wave_names[box_sel_idx[0]], param_names[box_sel_idx[1]])
-                dirty = False
-            clock.tick(30)
+            if AI_state != "idle":
+                view.draw_AI_interface(screen, font, AI_state)
+            else:
+                if dirty:
+                    view.draw_screen(screen, font, sound, wave_names[box_sel_idx[0]], param_names[box_sel_idx[1]])
+                    dirty = False
+                clock.tick(30)
     except KeyboardInterrupt:
         pass
     finally:

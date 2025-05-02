@@ -6,7 +6,8 @@ import openai
 import json
 import os
 import time
-import pyttsx3
+import subprocess
+from vosk import Model, KaldiRecognizer
 
 # ------------ Synth LLM Config ------------
 
@@ -90,93 +91,109 @@ class LLMClient:
         )
         return json.loads(response.choices[0].message.content)
 
-class SpeechToText:
-    def __init__(self, api_key, device_keyword="USB PnP Sound Device", samplerate=44100, duration=5):
-        self.api_key = api_key
-        self.device_keyword = device_keyword.lower()
+class SpeechToTextLocal:
+    def __init__(self,
+                 model_path: str = "model/vosk-model-small-en-us-0.15",
+                 samplerate: int = 44100,
+                 threshold: float = 0.02,
+                 silence_duration: float = 1.0,
+                 max_record_time: float = 30.0):
+        """
+        model_path:       path to your Vosk model folder
+        samplerate:       recording sample rate
+        threshold:        RMS level above which we consider 'speech'
+        silence_duration: seconds of silence to auto‐stop after speaking
+        max_record_time:  absolute cap on recording length
+        """
+        # load the Vosk model (may take ~1s)
+        print(f"Loading Vosk model from {model_path} …")
+        self.model = Model(model_path)
         self.samplerate = samplerate
-        self.duration = duration
-        self.client = openai.OpenAI(api_key=self.api_key)
-        self._select_input_device()
+        self.threshold = threshold
+        self.silence_duration = silence_duration
+        self.max_record_time = max_record_time
 
-    def _select_input_device(self):
-        device_found = False
-        for idx, dev in enumerate(sd.query_devices()):
-            if self.device_keyword in dev['name'].lower() and dev['max_input_channels'] > 0:
-                print(f"✅ Using microphone: {dev['name']} (index {idx})")
-                sd.default.device = (idx, None)
-                device_found = True
-                break
-        if not device_found:
-            raise RuntimeError("❌ No matching microphone device found.")
+    def record_and_transcribe(self) -> str:
+        """
+        1) wait for speech (RMS > threshold)
+        2) record until silence_duration of quiet or max_record_time
+        3) feed entire waveform to Vosk and return transcript
+        """
+        print("⏳ Waiting for speech…")
+        frames = []
+        in_speech = False
+        silence_start = None
+        start_time = sd.get_stream().time if False else __import__('time').time()
 
-    def record_and_transcribe(self):
-        print("🎤 Recording... please speak now.")
-        recording = sd.rec(int(self.duration * self.samplerate),
-                           samplerate=self.samplerate,
-                           channels=1,
-                           dtype='int16')
-        sd.wait()
+        def callback(indata, _frames, _time, _status):
+            nonlocal in_speech, silence_start, start_time
+            rms = np.linalg.norm(indata) / np.sqrt(indata.size)
+            now = __import__('time').time()
 
-        with tempfile.NamedTemporaryFile(suffix=".wav") as f:
-            wav.write(f.name, self.samplerate, recording)
-            with open(f.name, "rb") as audio_file:
-                print("📤 Sending audio to Whisper API...")
-                transcript = self.client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=audio_file
-                )
-                text = transcript.text.strip()
-                print("📝 Transcription:", text)
-                return text
+            # timeout
+            if now - start_time > self.max_record_time:
+                raise sd.CallbackStop()
+
+            if rms > self.threshold:
+                if not in_speech:
+                    in_speech = True
+                    print("🎤 Detected speech, recording…")
+                silence_start = None
+                frames.append(indata.copy())
+            else:
+                if in_speech:
+                    if silence_start is None:
+                        silence_start = now
+                    elif now - silence_start >= self.silence_duration:
+                        print("🤫 Silence after speech, stopping.")
+                        raise sd.CallbackStop()
+                    frames.append(indata.copy())
+
+        # open stream and block until stop
+        with sd.InputStream(channels=1,
+                            samplerate=self.samplerate,
+                            callback=callback):
+            sd.sleep(int(self.max_record_time * 1000))
+
+        if not frames:
+            print("⚠️  No speech detected.")
+            return ""
+
+        # concatenate and convert to 16-bit PCM
+        audio = np.concatenate(frames, axis=0)
+        pcm_data = (audio * 32767).astype(np.int16).tobytes()
+
+        # recognize with Vosk
+        rec = KaldiRecognizer(self.model, self.samplerate)
+        rec.SetWords(False)
+        rec.AcceptWaveform(pcm_data)
+        result = rec.FinalResult()
+        text = json.loads(result).get("text", "")
+        print("📝 Transcription:", text)
+        return text
 
 class TextToSpeech:
-    def __init__(self):
-        self.engine = pyttsx3.init()
-        # optionally adjust voice properties:
-        # self.engine.setProperty('rate', 150)
-        # self.engine.setProperty('volume', 1.0)
+    def __init__(self, rate: int = 180, volume: int = 200):
+        """
+        rate:    speaking rate (words per minute)
+        volume:  amplitude (0–200)
+        """
+        self.rate = rate
+        self.volume = volume
 
-    def speak(self, text):
-        self.engine.say(text)
-        self.engine.runAndWait()
-
-# ------------ Main Logic ------------
-
-def main():
-    api_key_path = ".openai_api_key"
-    llm = LLMClient(api_key_path=api_key_path)
-    with open(api_key_path) as f:
-        api_key = f.read().strip()
-    stt = SpeechToText(api_key=api_key)
-    tts = TextToSpeech()
-
-    tts.speak("Hello! Please describe the sound you would like to create.")
-
-    while True:
-        user_prompt = stt.record_and_transcribe()
-        if not user_prompt:
-            tts.speak("I did not catch that. Please try speaking again.")
-            continue
-
-        tts.speak("Got it. Generating your sound preset. Please wait.")
-        response = llm.gen_resp(user_prompt)
-
-        tts.speak("Here is what I created for you.")
-        tts.speak(response["description"])
-
-        tts.speak("Would you like to modify it? Please say yes or no.")
-        user_reply = stt.record_and_transcribe().lower()
-
-        if "no" in user_reply or user_reply.strip() == "":
-            filename = f"llmgen_preset.json"
-            with open(filename, "w") as f:
-                json.dump(response, f, indent=2)
-            tts.speak("Your preset has been saved. Thank you!")
-            print(f"✅ Preset saved as {filename}")
-            break
-        else:
-            tts.speak("Okay, let's try again. Please describe your sound.")
-
-if __name__ == "__main__":
-    main()
+    def speak(self, text: str):
+        """
+        Synchronously speak the given text using espeak.
+        espeak handles playback itself; no external player needed.
+        All espeak output is suppressed to keep the console clean.
+        """
+        subprocess.call(
+            [
+                'espeak',
+                f'-s{self.rate}',    # set speaking rate
+                f'-a{self.volume}',  # set volume amplitude
+                text
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )

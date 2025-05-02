@@ -2,6 +2,9 @@ import math
 import pygame, pigame
 from pygame.locals import *
 from sound import *
+import time
+import random
+import colorsys
 
 size = width, height = 320, 240
 white = (255, 255, 255)
@@ -344,4 +347,148 @@ def draw_screen(screen, font, sound, wave_name, param_name):
     draw_envelope_preview(screen, sound, wave_name)
     draw_filter_preview(screen, sound, wave_name)
 
+    pygame.display.update()
+
+class Particle:
+    def __init__(self, x, y, vx, vy, life, size, hue):
+        self.x, self.y = x, y
+        self.vx, self.vy = vx, vy
+        self.life = life
+        self.size = size
+        self.hue = hue
+
+    def update(self, dt):
+        self.x += self.vx * dt
+        self.y += self.vy * dt
+        self.life -= dt
+
+    def draw(self, surf):
+        if self.life <= 0:
+            return
+        # Calculate alpha fade and brightness fade
+        frac = max(0, self.life / PARTICLE_LIFE)
+        alpha = int(255 * frac)
+        # Compute RGB from hue, with full saturation & value scaled by frac
+        r_f, g_f, b_f = colorsys.hsv_to_rgb(self.hue, 1.0, frac)
+        color = (int(r_f * 255), int(g_f * 255), int(b_f * 255), alpha)
+        radius = int(self.size * frac)
+        if radius > 0:
+            pygame.draw.circle(surf, color, (int(self.x), int(self.y)), radius)
+
+# module‐level particle lists & timing
+PARTICLE_LIFE = 1.0
+_listen_particles = []
+_speak_particles = []
+_last_time = time.time()
+
+def draw_AI_interface(screen, font, AI_state):
+    global _last_time, _listen_particles, _speak_particles
+
+    # compute dt
+    now = time.time()
+    dt = now - _last_time
+    _last_time = now
+
+    # clear screen
+    screen.fill(black)
+
+    # compute pulsing radius & alpha
+    sin_val = math.sin(2 * math.pi * now / 2.0)
+    radius = int(45 + 15 * sin_val)
+    alpha = int(((sin_val + 1) / 2) * (230 - 50) + 50)
+
+    # compute dynamic hue based on time (cycle every 5 seconds)
+    hue = (now / 5.0) % 1.0
+    # base RGB for ring/fill
+    r_f, g_f, b_f = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
+    ring_color = (
+        int(r_f * 255), int(g_f * 255), int(b_f * 255),
+        int(alpha * 0.6)
+    )
+    fill_color = (
+        int(r_f * 255), int(g_f * 255), int(b_f * 255),
+        alpha
+    )
+
+    # prepare glow surface
+    glow = pygame.Surface((width, height), pygame.SRCALPHA)
+    # outer ring
+    pygame.draw.circle(
+        glow, ring_color,
+        (width//2, height//2),
+        radius + 4, 4
+    )
+    # inner fill
+    pygame.draw.circle(
+        glow, fill_color,
+        (width//2, height//2),
+        radius
+    )
+    screen.blit(glow, (0, 0))
+
+    # spawn & update particles
+    if AI_state == "listen":
+        # spawn inbound particles with same hue
+        for _ in range(2):
+            angle = random.random() * 2*math.pi
+            px = width/2 + (radius+5) * math.cos(angle)
+            py = height/2 + (radius+5) * math.sin(angle)
+            speed = random.uniform(20, 60)
+            vx = -math.cos(angle) * speed
+            vy = -math.sin(angle) * speed
+            _listen_particles.append(
+                Particle(px, py, vx, vy, PARTICLE_LIFE, random.uniform(2,5), hue)
+            )
+        # update & draw
+        for p in _listen_particles[:]:
+            p.update(dt)
+            p.draw(screen)
+            if p.life <= 0:
+                _listen_particles.remove(p)
+
+    else:  # "speak"
+        # spawn outbound burst particles with varied hue offset
+        for _ in range(3):
+            angle = random.random() * 2*math.pi
+            speed = random.uniform(50, 100)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+            # give each particle a slight hue variation
+            ph = (hue + random.uniform(-0.1, 0.1)) % 1.0
+            _speak_particles.append(
+                Particle(width/2, height/2, vx, vy, PARTICLE_LIFE, random.uniform(3,7), ph)
+            )
+        for p in _speak_particles[:]:
+            p.update(dt)
+            p.draw(screen)
+            if p.life <= 0:
+                _speak_particles.remove(p)
+
+    # 5. Static size, dynamic grayscale color
+    cx, cy = width//2, height//2
+    label = "Listening..." if AI_state == "listen" else "Speaking..."
+    # choose a fixed font size per state
+    font_size = 28 if AI_state == "listen" else 32
+    text_font = pygame.font.Font(None, font_size)
+
+    # recompute the 2 s sine oscillation
+    sin_val = math.sin(2 * math.pi * now / 2.0)  # now is from your dt code
+
+    # set up different gray centers & amplitudes
+    if AI_state == "listen":
+        gray_center, gray_amp = 200, 55   # pulses between 145 and 255
+    else:
+        gray_center, gray_amp = 100, 60   # pulses between 40 and 160
+
+    # compute dynamic gray and clamp
+    gray = int(gray_center + gray_amp * sin_val)
+    gray = max(0, min(255, gray))
+    text_color = (gray, gray, gray)
+
+    # render & blit at center
+    txt_surf = text_font.render(label, True, text_color)
+    txt_rect = txt_surf.get_rect(center=(cx, cy))
+    screen.blit(txt_surf, txt_rect)
+
+    # 6. Present the frame
     pygame.display.update()
