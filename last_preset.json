@@ -1,0 +1,75 @@
+{
+  "exit": 1,
+  "description": "The user is satisfied with the current sound parameters, expressing love for the sound.",
+  "channels": [
+    {
+      "waveform": {
+        "name": "saw",
+        "frequency": 440.0
+      },
+      "envelope": {
+        "attack_time": 0.2,
+        "decay_time": 0.5,
+        "sustain_level": 0.7,
+        "release_time": 0.6
+      },
+      "filter": {
+        "low": 0.8,
+        "mid": 0.7,
+        "high": 0.5
+      },
+      "reverb": {
+        "decay": 0.7,
+        "delay": 0.05,
+        "wet": 0.4
+      },
+      "volume": 0.7
+    },
+    {
+      "waveform": {
+        "name": "sin",
+        "frequency": 440.0
+      },
+      "envelope": {
+        "attack_time": 0.2,
+        "decay_time": 0.5,
+        "sustain_level": 0.6,
+        "release_time": 0.5
+      },
+      "filter": {
+        "low": 0.9,
+        "mid": 0.6,
+        "high": 0.4
+      },
+      "reverb": {
+        "decay": 0.6,
+        "delay": 0.05,
+        "wet": 0.5
+      },
+      "volume": 0.6
+    },
+    {
+      "waveform": {
+        "name": "sqr",
+        "frequency": 440.0
+      },
+      "envelope": {
+        "attack_time": 0.2,
+        "decay_time": 0.5,
+        "sustain_level": 0.5,
+        "release_time": 0.5
+      },
+      "filter": {
+        "low": 0.7,
+        "mid": 0.5,
+        "high": 0.3
+      },
+      "reverb": {
+        "decay": 0.5,
+        "delay": 0.05,
+        "wet": 0.3
+      },
+      "volume": 0.5
+    }
+  ]
+}

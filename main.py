@@ -5,6 +5,7 @@ import pygame, pigame
 import RPi.GPIO as GPIO
 from pygame.locals import *
 import threading
+import json
 
 import numpy as np
 import sounddevice as sd
@@ -14,6 +15,7 @@ from sound import *
 import view
 import knob
 import reaction
+from reaction import call_synth_llm
 
 # Set up the piTFT display
 os.putenv('SDL_VIDEODRIVER', 'fbcon')
@@ -69,7 +71,7 @@ sound.add_channel(channel2)
 sound.add_channel(channel3)
 
 # View setup
-font = pygame.font.Font(None, 25)
+font = pygame.font.Font(None, 23)
 box_sel_idx = [0, 0]
 wave_names = ["saw", "sin", "sqr"]
 param_names = ["vol", "att", "dec", "sus", "rel", "L", "M", "H", "dec2", "del", "wet"]
@@ -91,22 +93,32 @@ llm = reaction.LLMClient(api_key_path=api_key_path)
 with open(api_key_path) as f:
     api_key = f.read().strip()
 stt = reaction.SpeechToTextLocal(
-    model_path="/home/pi/vosk_models/vosk-model-small-en-us-0.15",
+    model_path="/home/pi/vosk_models/vosk-model-en-us-0.22-lgraph",
     samplerate=44100,
     threshold=0.02,
     silence_duration=1.0,
     max_record_time=30.0
 )
+# stt = reaction.SpeechToTextWhisper(
+#     api_key_path=".openai_api_key",
+#     model="whisper-1",
+#     samplerate=44100,
+#     threshold=0.02,
+#     silence_duration=1.0,
+#     max_record_time=None   # or e.g. 30 to cap recording at 30 s
+# )
 tts = reaction.TextToSpeech()
 
 def ai_conversation_loop():
     """
-    Runs in its own thread.  
-    Cycles: silence → listen → speak → silence …  
-    Exits immediately if exit_event is set.
+    silence → listen → reasoning → speak → silence
     """
-    global AI_state, dirty
+    global AI_state, dirty, sound
 
+    user_text = ""
+    llm_response = {}
+
+    tts.speak("Entering AI mode. Please describe the sound you want to create.")
     while not exit_event.is_set():
         if AI_state == "silence":
             dirty = True
@@ -115,35 +127,73 @@ def ai_conversation_loop():
 
         if AI_state == "listen":
             dirty = True
-            try:
-                user_text = stt.record_and_transcribe()
-            except Exception:
-                user_text = ""
-            # if user presses GPIO26 mid-record, we still finish record_and_transcribe,
-            # but the moment it returns we'll see exit_event and break.
-            if exit_event.is_set():
-                break
+            user_text = stt.record_and_transcribe()
+            print(f"📝 Transcription result: '{user_text}'")
+            AI_state = "reasoning"
+            continue
 
-            if user_text.strip().lower() == "quit":
-                tts.speak("Quitting AI assistant.")
+        if AI_state == "reasoning":
+            dirty = True
+            # call into your helper in reaction.py
+            tts.speak("AI starts thinking.")
+            llm_response = call_synth_llm(
+                llm,
+                f"Current parameters are:\n{str(sound.get_current_params())}\nUser request is: {user_text}"
+                )
+            tts.speak("AI thinking finished.")
+            # persist channels locally
+            with open("last_preset.json", "w") as f:
+                json.dump(llm_response, f, indent=2)
+            if llm_response.get("exit", 1) == 1:
+                # user wants to quit AI mode immediately
+                tts.speak(f'''{llm_response.get("description", "")}. Exiting AI mode''')
+                exit_event.set()
+                print("LLM returned exit=1, quitting AI mode")
                 break
-
             AI_state = "speak"
             continue
 
         if AI_state == "speak":
             dirty = True
-            response_text = f"I heard you say: {user_text}"
-            tts.speak(response_text)
-            if exit_event.is_set():
-                break
+            # speak the description
+            desc = llm_response.get("description", "")
+            print(f"LLM response description: {desc}")
+            tts.speak(desc)
+            # you could also immediately apply the channel settings:
+            _wave_names = ["sin", "sqr", "saw"]
+            for ch_conf in llm_response.get("channels", []):
+                idx = _wave_names.index(ch_conf["waveform"]["name"])
+                chan = sound.channels[idx]
+                # set parameters from the LLM response
+                print(f"Channel {idx} config: {ch_conf}")
+                chan.waveform = Waveform(_wave_names[idx], frequency=float(ch_conf["waveform"]["frequency"]))
+                chan.volume = float(ch_conf["volume"])
+                chan.envelopes[0].attack_time = float(ch_conf["envelope"]["attack_time"])
+                chan.envelopes[0].decay_time = float(ch_conf["envelope"]["decay_time"])
+                chan.envelopes[0].sustain_level = float(ch_conf["envelope"]["sustain_level"])
+                chan.envelopes[0].release_time = float(ch_conf["envelope"]["release_time"])
+                chan.filters[0].low = float(ch_conf["filter"]["low"])
+                chan.filters[0].mid = float(ch_conf["filter"]["mid"])
+                chan.filters[0].high = float(ch_conf["filter"]["high"])
+                chan.reverbs[0].decay = float(ch_conf["reverb"]["decay"])
+                chan.reverbs[0].delay = float(ch_conf["reverb"]["delay"])
+                chan.reverbs[0].wet = float(ch_conf["reverb"]["wet"])
+                # ...and so on for envelope, filter, reverb
+            # Play the sound
+            tts.speak("Here is the sound:")
+            time.sleep(0.5)
+            dirty = False
+            sound.note_on() # trigger note on
+            time.sleep(2)
+            sound.note_off()  # trigger note off
+            time.sleep(3)
+            dirty = True
             AI_state = "silence"
             continue
 
-        # small sleep so we don't tight-spin if state is unexpected
         time.sleep(0.05)
 
-    # cleanup on exit
+    # cleanup
     AI_state = "idle"
     dirty = True
 
@@ -318,13 +368,13 @@ with sd.OutputStream(samplerate=SAMPLE_RATE, channels=1, dtype='float32', callba
                     knob_in0.last_voltage = new_voltage
                     on_knob_in0_voltage_change(new_voltage)
             # redraw if needed
-            if AI_state != "idle":
-                view.draw_AI_interface(screen, font, AI_state)
-            else:
-                if dirty:
+            if dirty:
+                if AI_state == "idle":
                     view.draw_screen(screen, font, sound, wave_names[box_sel_idx[0]], param_names[box_sel_idx[1]])
                     dirty = False
-                clock.tick(30)
+                else:
+                    view.draw_AI_interface(screen, font, AI_state)
+            clock.tick(30)
     except KeyboardInterrupt:
         pass
     finally:

@@ -66,6 +66,7 @@ class Waveform:
         frequency: tone frequency in Hz
         """
         self.name = name
+        self.frequency = frequency
         self.length = int(sr / frequency)
         t = np.arange(self.length) / sr
         if name == 'saw':
