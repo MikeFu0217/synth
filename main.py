@@ -113,7 +113,7 @@ def ai_conversation_loop():
     """
     silence → listen → reasoning → speak → silence
     """
-    global AI_state, dirty, sound
+    global AI_state, dirty, sound, wave_names
 
     user_text = ""
     llm_response = {}
@@ -160,13 +160,12 @@ def ai_conversation_loop():
             print(f"LLM response description: {desc}")
             tts.speak(desc)
             # you could also immediately apply the channel settings:
-            _wave_names = ["sin", "sqr", "saw"]
             for ch_conf in llm_response.get("channels", []):
-                idx = _wave_names.index(ch_conf["waveform"]["name"])
+                idx = wave_names.index(ch_conf["waveform"]["name"])
                 chan = sound.channels[idx]
                 # set parameters from the LLM response
                 print(f"Channel {idx} config: {ch_conf}")
-                chan.waveform = Waveform(_wave_names[idx], frequency=float(ch_conf["waveform"]["frequency"]))
+                chan.waveform = Waveform(wave_names[idx], frequency=float(ch_conf["waveform"]["frequency"]))
                 chan.volume = float(ch_conf["volume"])
                 chan.envelopes[0].attack_time = float(ch_conf["envelope"]["attack_time"])
                 chan.envelopes[0].decay_time = float(ch_conf["envelope"]["decay_time"])
@@ -294,8 +293,8 @@ def set_quantized(obj, attr, range_list, v, steps):
 def on_knob_in0_voltage_change(voltage):
     # Set the voltage to a value between 0.0 and 3.3
     # and map it to the parameter range
-    global dirty
-    v = min(max(voltage, 0.0), 3.3) / 3.3
+    global dirty, box_sel_idx
+    v = 1 - min(max(voltage, 0.0), 3.3) / 3.3
     cha   = sound.channels[box_sel_idx[0]]
     key   = param_names[box_sel_idx[1]]
     steps = QUANT_STEPS.get(key, 100)
