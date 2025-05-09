@@ -44,16 +44,6 @@ date: 2025-05-08
 
 ---
 
-## Introduction
-
-> AI-Powered Digital Synthesizer on [Raspberry Pi 4](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) that lets users design sound in a way that they have never experienced before. Users can choose either to tune the parameters using parameter selection buttons themselves, or enter AI mode to have a conversation with our AI Agent and ask it to generate the sound.
-
-> For software, it is a Python-based real-time sound synthesizer with a built-in LLM Agent. The digital synthesizer supports three channels of waves: saw, sine, and square. Each channel has an envelope, a filter, and a reverb with 15 tunable parameters in total. PiTFT is supported for displaying and selecting parameters and displaying waveform style, envelope curve, and filter percentages. Under AI mode, particle system display as an AI assistant is supported. In the meantime, real-time playback recording is supported by tracking system sound frames.
-
-> As for hardware, we included 6 GPIO-connected buttons, an [ADS1115](https://cdn-shop.adafruit.com/datasheets/ads1115.pdf) ADC, and a [P160 Panel Potentiometer](https://www.ttelectronics.com/TTElectronics/media/ProductFiles/Datasheet/P160.pdf). The GPIO buttons function include: 1 for sound play key, 1 for channel selection, 2 for parameter selection, 1 for AI mode entering/exiting, and 1 for playback control. The potentiometer knob is connected to ADS1115 and then to the Pi4, using the [Adafruit_Blinka](https://github.com/adafruit/Adafruit_Blinka) Python library we can read voltage from the knob in real time.
-
----
-
 ## Project Objective
 
 - **The Digital Synthesizer**
