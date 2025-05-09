@@ -1661,10 +1661,10 @@
 		(uuid "61fc9711-83f2-4687-bfcd-5c727883f78e")
 	)
 	(junction
-		(at 106.68 85.09)
+		(at 106.68 96.52)
 		(diameter 0)
 		(color 0 0 0 0)
-		(uuid "77e35578-b091-4a70-b1e3-830cd0ad0c87")
+		(uuid "66570b23-5cef-4d7c-8026-1c23e634c805")
 	)
 	(junction
 		(at 105.41 40.64)
@@ -1800,6 +1800,16 @@
 	)
 	(wire
 		(pts
+			(xy 106.68 96.52) (xy 106.68 102.87)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4b08175b-9888-4888-a252-8f5d1967c059")
+	)
+	(wire
+		(pts
 			(xy 120.65 40.64) (xy 105.41 40.64)
 		)
 		(stroke
@@ -1837,6 +1847,16 @@
 			(type default)
 		)
 		(uuid "5ecf3067-2c80-4138-a53f-12b22a2dbd1f")
+	)
+	(wire
+		(pts
+			(xy 106.68 96.52) (xy 109.22 96.52)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "647279a8-ee37-4045-bbc7-7a5c9d04a3d5")
 	)
 	(wire
 		(pts
@@ -1970,7 +1990,7 @@
 	)
 	(wire
 		(pts
-			(xy 105.41 96.52) (xy 109.22 96.52)
+			(xy 105.41 96.52) (xy 106.68 96.52)
 		)
 		(stroke
 			(width 0)
@@ -2037,16 +2057,6 @@
 			(type default)
 		)
 		(uuid "bef76a52-331c-4e45-8a77-164bf536ec50")
-	)
-	(wire
-		(pts
-			(xy 106.68 102.87) (xy 106.68 85.09)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c78bc2fa-de05-4158-b6b2-b2531e48574a")
 	)
 	(wire
 		(pts
@@ -2146,7 +2156,7 @@
 				)
 			)
 		)
-		(property "Value" "1K"
+		(property "Value" "10K"
 			(at 113.03 81.28 90)
 			(effects
 				(font
@@ -2558,7 +2568,7 @@
 				)
 			)
 		)
-		(property "Value" "10K"
+		(property "Value" "1K"
 			(at 113.03 92.71 90)
 			(effects
 				(font
@@ -2686,7 +2696,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "b2ba4b7b-03d5-4f2f-abc5-f8e12541a26b")
-		(property "Reference" "RV1"
+		(property "Reference" "P160"
 			(at 86.36 52.0699 0)
 			(effects
 				(font
@@ -2743,7 +2753,7 @@
 		(instances
 			(project ""
 				(path "/b16a36d3-5bce-4c07-824a-9226f727ef4c"
-					(reference "RV1")
+					(reference "P160")
 					(unit 1)
 				)
 			)
@@ -2835,7 +2845,7 @@
 				)
 			)
 		)
-		(property "Value" "1K"
+		(property "Value" "10K"
 			(at 113.03 99.06 90)
 			(effects
 				(font
@@ -2903,7 +2913,7 @@
 				)
 			)
 		)
-		(property "Value" "10K"
+		(property "Value" "1K"
 			(at 113.03 72.39 90)
 			(effects
 				(font
