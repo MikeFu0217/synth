@@ -25,7 +25,6 @@
 - [Detailed Goals](#Detailed-Goals)
 - [Design & Implementation](#design--implementation)
 - [Code Structure](#code-structure)
-- [Diagrams](#diagrams)
 - [Modules](#modules)
 - [Testing](#testing)
 - [Results](#results)
@@ -582,7 +581,7 @@ synth/
 
 ---
 
-## Conclusions
+## Conclusion
 
 This project demonstrates a fully integrated, low-latency software synthesizer with AI-driven control, real-time audio DSP, and an intuitive single-knob UI. We achieved sub ~ms trigger response, glitch-free envelopes and filters, and a stable reverb—all running on a Raspberry Pi 4 in parallel with on-device and cloud AI services. Key lessons include the importance of lean ISR logic, block-aligned parameter swaps to avoid audio artifacts, and “dirty-rect” display updates to preserve CPU headroom for sound. Future improvements could add multi-voice polyphony, melody generation, customizable convolution reverbs, a richer patch-management interface, and deeper integration of on-device neural networks for offline AI performance.
 
