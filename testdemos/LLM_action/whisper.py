@@ -5,8 +5,7 @@ import tempfile
 import openai
 
 # ✅ 初始化 OpenAI 客户端（适用于 openai>=1.0.0）
-client = openai.OpenAI(api_key="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")
-
+client = openai.OpenAI(api_key="")
 # 🎯 通过设备名称自动选择麦克风（不再硬编码 index）
 target_name = "USB PnP Sound Device"
 device_found = False

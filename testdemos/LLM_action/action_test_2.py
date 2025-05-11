@@ -29,7 +29,7 @@ import numpy as np
 import sounddevice as sd
 
 # —— 配置区（保持之前的简化版） —— 
-API_KEY     = "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"
+API_KEY     = ""
 MODEL       = "gpt-4"
 SAMPLE_RATE = 44100
 OUTPUT_DIR  = Path("LLM_action/generated_sounds")

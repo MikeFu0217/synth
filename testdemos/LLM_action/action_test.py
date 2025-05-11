@@ -6,7 +6,7 @@ from channel import Channel, Waveform, Envelope, Filter, Reverb
 from sound import Sound
 
 # ✅ 设置 OpenAI API Key
-client = openai.OpenAI(api_key="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")
+client = openai.OpenAI(api_key="")
 
 # 创建保存目录
 output_dir = Path("generated_sounds")
