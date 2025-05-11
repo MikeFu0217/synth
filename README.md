@@ -1,32 +1,36 @@
----
-title: "AI-Powered Digital Synthesizer"
-author:
-  - "Zuoming Fu (zf242)"
-  - "Muyang Li (ml2855)"
-date: 2025-05-08
----
+<div align="center">
+    <h1>AI-Powered Digital Synthesizer</h1>
+</div>
+<div align="center">
+    <p style="font-size: 24px;">AI for Sound Design on Raspberry Pi</p>
+</div>
 
-# AI-Powered Digital Synthesizer
+<div align="center">
+    Authors: Zuoming Fu (zf242), Muyang Li (ml2855)
+</div>
 
-*AI for Sound Design on Raspberry Pi 4*
-
----
-
-## Demo Video
-
-[Watch the demo video](https://www.youtube.com/watch?v=32v_srOQsno&t=1s)
+<div align="center">
+    <a href="https://www.youtube.com/watch?v=et91Gea6CPk" target="_blank">Demo video</a>
+</div>
+<div align="center">
+    <a href="https://github.com/MikeFu0217/synth/tree/main?tab=readme-ov-file" target="_blank">Github Repository</a>
+</div>
 
 ---
 
 ## Table of Contents
 
+- [Objective](#Objective)
 - [Introduction](#introduction)
-- [Project Objective](#project-objective)
+- [Detailed Goals](#Detailed-Goals)
 - [Design & Implementation](#design--implementation)
 - [Code Structure](#code-structure)
 - [Diagrams](#diagrams)
 - [Modules](#modules)
+- [Testing](#testing)
+- [Results](#results)
 - [Conclusion](#conclusion)
+- [Future Work](#future-work)
 - [Team Contributions](#team-contributions)
 - [Parts List](#parts-list)
 - [References](#references)
@@ -34,17 +38,25 @@ date: 2025-05-08
 
 ---
 
+## Objective
+In this Project, we aim to design a real-time digital synthesizer with an AI Agent embedded using an Raspberry pi 4. The digital synthesizer can generate sound with envelope, filter, and reverb effects, just like a real keyboard. The AI Agent can communicate with the user through voice, and generate the sound preset the user specifies. For more convenienct manipulation, a PiTFT display, GPIO buttons, and a potentiometer knob with an ADC are connected to the Raspberry pi, giving users an intuitive and easy-to-start with experience.
+
 ## Introduction
 
-> AI-Powered Digital Synthesizer on [Raspberry Pi 4](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) that lets users design sound in a way that they have never experienced before. Users can choose either to tune the parameters using parameter selection buttons themselves, or enter AI mode to have a conversation with our AI Agent and ask it to generate the sound.
+> AI-Powered Digital Synthesizer on [Raspberry Pi 4](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) lets users design sound in a way that they have never experienced before. Users can choose either to tune the parameters using parameter selection buttons themselves, or enter AI mode to have a conversation with our AI Agent and ask it to generate the sound.
 
 > For software, it is a Python-based real-time sound synthesizer with a built-in LLM Agent. The digital synthesizer supports three channels of waves: saw, sine, and square. Each channel has an envelope, a filter, and a reverb with 15 tunable parameters in total. PiTFT is supported for displaying and selecting parameters and displaying waveform style, envelope curve, and filter percentages. Under AI mode, particle system display as an AI assistant is supported. In the meantime, real-time playback recording is supported by tracking system sound frames.
 
 > As for hardware, we included 6 GPIO-connected buttons, an [ADS1115](https://cdn-shop.adafruit.com/datasheets/ads1115.pdf) ADC, and a [P160 Panel Potentiometer](https://www.ttelectronics.com/TTElectronics/media/ProductFiles/Datasheet/P160.pdf). The GPIO buttons function include: 1 for sound play key, 1 for channel selection, 2 for parameter selection, 1 for AI mode entering/exiting, and 1 for playback control. The potentiometer knob is connected to ADS1115 and then to the Pi4, using the [Adafruit_Blinka](https://github.com/adafruit/Adafruit_Blinka) Python library we can read voltage from the knob in real time.
 
+<div align="center">
+  <img src="./docs/synth.png" width="600">
+  <p style="margin-top:10px; font-size:16px;">Fig1. Our AI Powered Digital Synthesizer</p>
+</div>
+
 ---
 
-## Project Objective
+## Detailed Goals
 
 - **The Digital Synthesizer**
   
@@ -69,17 +81,28 @@ date: 2025-05-08
   - `ADSR envelope display`: Displays a 4-stage curve line, with curve height dynamically related to ADSR values.
   - `AI Sphere`: Displays a dynamic circle with particles similar to Apple Siri, changing shapes under listening/speaking.
 
+<div align="center">
+  <img src="./docs/display.png" width="600">
+  <p style="margin-top:10px; font-size:16px;">Fig2. The PiTFT Screen Display with parameter and waveform, ADSR, and Filter graphics</p>
+</div>
+
+
 ---
 
 ## Design & Implementation
 
-1. **Overall Flow**
+1. **Software System Flow**
+> Our software system promarily consists of two parts, the main loop, and an AI loop. The main loop is the main control flow in where sound and display are generated, and where all GPIO callbacks are handled. The AI loop is an system event that can be triggered using one of the GPIO callbacks.
+
 ![MainFlow](./docs/main_flow.png)
+<div align="center">
+  <p style="margin-top:10px; font-size:16px;">Fig3. The Software System Flow Chart</p>
+</div>
 
 2. **Key Technical Details**  
  
-   - `Real‑time sound triggering`:  
-     Hardware events on GPIO‑17 (note key) are connected directly to the synthesis engine.  
+   - **Real‑time sound triggering**:  
+     Hardware events on GPIO‑17 (note key) are connected directly to the synthesis engine. It controls the `note_on()` and `note_off()` of the sound's envelopes to turn on and off the noise.
      ```python
      # main.py   ––  hardware interrupt
      def GPIO17_callback(channel):
@@ -91,7 +114,7 @@ date: 2025-05-08
                            callback=GPIO17_callback,
                            bouncetime=5)
      ```  
-     The **audio thread** is opened once and remains hot for the lifetime of the program:  
+     The **audio thread** is opened during the entire main loop and remains hot for the lifetime of the program:  
      ```python
      with sd.OutputStream(samplerate=SAMPLE_RATE,
                           channels=1,
@@ -99,74 +122,81 @@ date: 2025-05-08
                           callback=audio_callback):
          run_main_loop()          # GUI, GPIO, AI, etc.
      ```  
-     During every audio block the callback mixes the current sample block produced by the engine:  
+     During every audio block the callback mixes the current sample block produced by our sound engine:  
      ```python
      # main.py   ––  audio callback
      def audio_callback(outdata, frames, time_info, status):
          sig = sound.process(frames)          # ← pulls from every channel
          outdata[:, 0] = np.clip(sig, -1.0, 1.0)
      ```  
-     `sound.process()` iterates over all active **Channel** objects and, for each, calls its envelope‐aware `process()` to obtain a band‑limited waveform whose amplitude is shaped by ADSR. And because the GPIO ISR switches the envelope’s state variables **immediately**, the very next audio block—typically 64–128 samples later—reflects the new amplitude curve, giving sub‑millisecond “feel”. No busy waiting or message queues are needed, so latency is dominated only by the block size and the ALSA driver (~3–5 ms in practice).  
-
-   - `Real-time Enveloping`:  
-     Implemented in **channel.py**’s `Envelope` class. Each voice’s ADSR envelope parameters are stored and updated per-sample in `update_samples()`.  
+     `sound.process()` iterates over all active **Channel** objects and, for each, calls its envelope‐aware `process()` to obtain a band‑limited waveform whose amplitude is shaped by ADSR. Because the GPIO ISR switches the envelope’s state variables immediately, the very next audio block reflects the new amplitude curve, giving sub‑millisecond “feel”:
      ```python
-     # channel.py
-     class Envelope:
-         def __init__(self, A, D, S, R, sr=44100):
-             self.A, self.D, self.S, self.R = A, D, S, R
-             self.sr = sr; self.state='idle'; self.t=0
-         def note_on(self):
-             self.state, self.t = 'attack', 0
-         def note_off(self):
-             self.state, self.t = 'release', 0
-         def update_samples(self, num):
-             out = np.zeros(num)
-             dt = 1/self.sr
-             for i in range(num):
-                 if self.state=='attack':
-                     out[i] = self.t/self.A
-                     if self.t>=self.A: self.state='decay'; self.t=0
-                 # … handle decay, sustain, release …
-                 self.t += dt
-             return out
+     # channel.py   ––  Channel.process()
+     def process(self, frames):
+         ar = np.arange(frames)
+         idx = (self.phase + ar) % self.waveform.length
+         sig = self.waveform.data[idx].copy()
+ 
+         for env in self.envelopes:
+             sig *= env.process(frames)  # Apply ADSR envelope
+         for fl in self.filters:
+             sig = fl.apply(sig)  # Apply filters
+         for rv in self.reverbs:
+             sig = rv.apply(sig)  # Apply reverbs
+
+         sig *= self.volume
+         self.phase = (self.phase + frames) % self.waveform.length
+         return sig
+     ```
+
+   - **Real-time Enveloping**:  
+     Implemented in **channel.py**’s `Envelope` class. Each voice’s ADSR envelope parameters are stored and updated per-sample in `process()`.  
+     ```python
+     # channel.py   ––  Envelope.process()
+     def process(self, frames):
+         env = np.zeros(frames, dtype='float32')
+         if self.state == 'idle':
+             return env
+         self.update_samples()  # ADSR values are updated here according to knob tuning
+         for i in range(frames):
+             if self.state == 'attack':  # As an example of how ADSR progress is recorded
+                 self.progress += 1.0 / self.a_samps
+                 self.current_amp = min(self.progress, 1.0)
+                 env[i] = self.current_amp
+                 if self.progress >= 1.0:
+                     self.state = 'decay'
+                     self.progress = 0.0
+             elif self.state == 'decay':
+                 # ...
+             elif self.state == 'sustain':
+                 # ...
+             elif self.state == 'release':
+                 # ...
+             else:
+                 env[i] = 0.0
+        return env
      ```  
      The per-sample state machine yields smooth, glitch-free amplitude modulation.
 
-   - `Real-time Filtering`:  
-     Implemented as Biquad IIR filters in **channel.py**’s `Filter` class:  
+   - **Real-time Filtering**:  
+     Implemented a simple frequency modulation filter in **channel.py**’s `Filter` class:  
      ```python
      # channel.py
      class Filter:
-         def __init__(self, b, a):
-             self.b, self.a = b, a
-             self.z = np.zeros(max(len(a), len(b))-1)
-         def apply(self, x):
-             y, self.z = signal.lfilter(self.b, self.a, x, zi=self.z)
-             return y
+         def __init__(self):
+             # ...
+         def apply(self, signal):
+            """Apply band-specific gains."""
+            fft = np.fft.rfft(signal)
+            freqs = np.fft.rfftfreq(len(signal), d=1/self.sr)
+            fft[freqs < 400] *= self.low
+            fft[(freqs >= 400) & (freqs < 4000)] *= self.mid
+            fft[freqs >= 4000] *= self.high
+            return np.fft.irfft(fft, n=len(signal))
      ```  
-     Coefficients `(b, a)` are recalculated on parameter change (UI or AI) and swapped in at buffer-boundaries to avoid clicks.
+     `numpy` provides CPU-fast array processing, making te filter of a frame within milliseconds.
 
-   - `Reverb`:  
-     A simple Feedback Delay Network (FDN) in **channel.py**’s `Reverb` class:  
-     ```python
-     # channel.py
-     class Reverb:
-         def __init__(self, delays, g, sr=44100):
-             self.delays = [int(d*sr) for d in delays]
-             self.g = g
-             self.buffer = np.zeros(max(self.delays))
-         def apply(self, x):
-             out = np.copy(x)
-             for d in self.delays:
-                 out[d:] += self.g * self.buffer[:-d]
-             self.buffer = np.roll(self.buffer, -len(x))
-             self.buffer[-len(x):] = out
-             return (1-self.wet)*x + self.wet*out
-     ```  
-     Delay taps `d_i` and gain `g = 10^(–3*d_i/(T₆₀·fs))` are precomputed to match desired reverb time.
-
-   - `AI thread event control with GPIO`:  
+   - **AI thread event control with GPIO**:  
      GPIO26 is reserved to abort the AI sequence and return to the main loop immediately:  
      ```python
      # main.py
@@ -178,35 +208,27 @@ date: 2025-05-08
          ai_abort.clear()
          return_to_main_loop()
      ```  
-     **Why:** Provides a hard “panic” to exit long LLM calls or speech synthesis without waiting, improving UX and safety in live performance.
+     This design provides a hard “panic” to exit long LLM calls or speech synthesis without waiting, improving UX and safety in live performance.
 
-   - `AI Mode state machine control`:  
+   - **AI Mode state machine control**:  
      The AI interaction is managed by a finite-state machine in **reaction.py**:  
      ```plaintext
-     IDLE → RECORDING → PROCESSING → SPEAKING → IDLE
+     IDLE -> LISTENING -> THINKING -> SPEAKING -> IDLE
      ```  
      Each transition has entry/exit hooks and timeouts. This ensures robust handling of partial speech, API delays, and guarantees return to **IDLE** even on errors.
 
-   - `AI Mode dynamic particle effect`:  
-     In **view.py**, the `Particle` class drives visual feedback during “PROCESSING”:  
-     ```python
-     # view.py
-     class Particle:
-         def __init__(self, pos, vel, lifespan):
-             self.x, self.y = pos; self.vx, self.vy = vel
-             self.birth = time.time(); self.lifespan = lifespan
-         def update(self, dt):
-             self.x += self.vx*dt; self.y += self.vy*dt
-         def draw(self, surf):
-             age = time.time() - self.birth
-             alpha = max(0, 1 - age/self.lifespan)
-             if age < self.lifespan:
-                 pygame.draw.circle(surf, (255,255,255,int(alpha*255)), (int(self.x),int(self.y)), 2)
-     ```  
-     A `ParticleSystem` spawns N tokens/sec proportional to LLM output rate, and culls them when `age ≥ lifespan`.
+   - **AI-Sphere effect**:  
+     In **view.py**, we add dynamic effects when AI is listening/thinking/speaking, just like the `Apple Siri`.
 
-   - `LLM prompting and structured output`:  
-     Prompts embed a strict JSON schema:  
+     ![AI modes](./docs/tls.png)
+     <div align="center">
+     <p style="margin-top:10px; font-size:16px;">Fig4. AI-Sphere under AI-Mode</p>
+     </div>
+
+     A `ParticleSystem` and a `Blooming Ball` are designed together to form the vivid `AI Sphere` that adds fun the the AI generating process.
+
+   - ***LLM prompting and structured output***:  
+     To make sure that LLM outputs the exact need parameters without any other stuffs, the `System Prompt` embed a strict JSON schema:  
      ```python
         SYSTEM_PROMPT = """You are a professional synthesizer sound designer assistant.
 
@@ -287,7 +309,7 @@ date: 2025-05-08
    - `TTV and VTT`:  
      (“TTV” = Text-to-Voice and “VTT” = Voice-to-Text)  
      Two ASR/TTS pipelines:
-     - **VTT**: `SpeechToTextLocal` (Vosk) & `SpeechToTextWhisper` (OpenAI) selectable at runtime.  
+     - **VTT**: `SpeechToTextLocal` (Vosk) & `SpeechToTextWhisper` (OpenAI) selectable.  
      - **TTV**: `TextToSpeech` use system `espeak` to minimize latency.
      ```python
         subprocess.call(
@@ -303,9 +325,12 @@ date: 2025-05-08
      ```
      Support for streaming output reduces end-to-end latency.
 
-   - `P160, ADS1115 and GPIO circuit design`:  
+   - ***Circuit design***:  
      We use an **ADS1115** ADC on I²C plus two tactile switches (`SW_REC` on GPIO 19, `SW_LLM` on GPIO 26) wired with pull-up and series resistors for reliable edge detection:
      ![dfafa](./docs/circuit.png)
+     <div align="center">
+     <p style="margin-top:10px; font-size:16px;">Fig5. Hardware Circuit Schematic Diagram</p>
+     </div>
      - **Switch Debounce & Safety**:  
        The 10 kΩ pull-ups keep the lines high; the 1 kΩ series resistors limit fault currents if the pin is accidentally reconfigured as output.
 
@@ -320,12 +345,12 @@ date: 2025-05-08
 
        The ADS1115 returns a 0–65 535 count, which we scale to 0.0–1.0 and quantize to discrete parameter steps in `knob.py`.
 
-   - `Analog voltage input quantization`:  
-     The input voltage is quantized 0.01%, and in the main function, whenver the knob is tuned and the change is over 0.01%, the knob callback function is triggered to change the sound parameters. This makes the knob change real-time and also reduce CPU consumption as well.
+   - **Analog voltage input quantization**:  
+     The input voltage is quantized 1%, meaning that in the main function, whenever the knob is tuned and the difference is over 1%, the knob callback function is triggered to change the sound parameters. This makes the knob change real-time and also reduce CPU consumption as well.
 
-    - `Knobbing decetion timestep`:  
-     Because ADS1115 doesn't support GPIO callback function, the knobbing can only be polled in the main loop. To reduce system usage, we include a knobbing detection timestep to reduce the sampling rate. We set the interval to 0.1 seconds, and the control flow is shown as below:
-     ```python
+    - **Adding a knobbing detection interval**:  
+     Because ADS1115 doesn't support GPIO callback function, the knobbing can only be polled in the main loop. To reduce system usage, we include a knobbing detection timestep to reduce the sampling rate. We set the interval to 0.1 seconds, and the voltage detection would only happen every 0.1 seconds:
+    ```python
     with sd.OutputStream(samplerate=SAMPLE_RATE, channels=1, dtype='float32', callback=audio_callback):
         try:
             while running:
@@ -344,7 +369,7 @@ date: 2025-05-08
             del pitft
      ```
 
-   - `Playback state machine and buffering`:  
+   - **Playback state machine and buffering**:  
      Live audio recording and playback are controlled via a simple three-state system toggled by GPIO‑19:
 
      - **State 0**: Idle – wait for user input  
@@ -374,8 +399,8 @@ date: 2025-05-08
 
      This block-aligned, buffer-based approach allows seamless one-button looping with no latency issues, ideal for live capture and replay.
 
-   - `Displaying module view.py`:  
-     **view.py** defines sub-draw functions:  
+   - `Adaptive display module`:  
+     In **view.py** we defines sub-draw functions:  
      ```python
      rects = _compute_panel_regions(screen.get_size())
      draw_waveform_preview(screen, rects['waveform'])
@@ -385,8 +410,7 @@ date: 2025-05-08
      ```  
      `draw_screen()` bundles these calls in sequence, and **main.py** simply calls `view.draw_screen()` each frame.
 
-   - `Adaptive display refresh rate`:  
-     Instead of a fixed FPS, we use a “dirty” flag to only update the PiTFT display when something changes:  
+     In addition, instead of a fixed FPS, we use a “dirty” flag to only update the PiTFT display when something changes:  
      ```python
      dirty = True
      while running:
@@ -509,7 +533,7 @@ synth/
 - **Channel**: encapsulates one synth voice; `__init__()` sets up oscillator, envelope, filter, reverb; `process()` generates one block of audio.  
 - **Waveform**: base class for oscillator tables/waveforms.  
 - **Envelope**: ADSR generator (`__init__()`, `update_samples()`, `note_on()`, `note_off()`, `process()`), shaping amplitude sample-by-sample.  
-- **Filter**: second-order IIR (biquad) filter (`__init__()`, `apply()`), applied to each voice.  
+- **Filter**: Frequency modulation filter (`__init__()`, `apply()`), applied to each voice.  
 - **Reverb**: feedback-delay-network reverb (`__init__()`, `apply()`), adds spatial ambience.
 
 ### `sound.py`
@@ -530,8 +554,8 @@ synth/
 
 ### `knob.py`
 - **KnobInput**: reads a potentiometer via SPI/ADC;  
-  - `__init__()`: configures MCP3008/ADS1115 settings.  
-  - `read_knob()`: samples, debounces, and quantizes into discrete control values.
+  - `__init__()`: configures ADS1115 settings.  
+  - `read_knob()`: samples, and quantizes into discrete control values.
 
 ### `reaction.py`
 - **call_synth_llm()**: formats user prompt and queries LLM for synth commands.  
@@ -541,18 +565,78 @@ synth/
 
 ---
 
-## Conclusion
+## Testing
+
+1. **Software Testing**
+> Our system is integrated by `channel.py`, `sound.py`, `view.py`, `knob.py`, and `reaction.py`. We developed these modules seperately, and tested them independently. In project folder `./testdemos`, you shall see an `LLM_action` folder, which contains files used to test the LLM module. In `test_key.py` and `saw_test.py`, the GPIO input with sound generation was tested. We developed our system in a progressive, with several checkpoints saved using **git**, each of which has been tested by running the entire program and see if there are any unfixed problems, which we will solve in the later version.
+
+2. **Hardware Testing**
+> Our hardware consists of a knob, an ADC1115, and several buttons with resistors and wires. To test the knob's functionality, we used the voltmeter provided by the lab to measure the minimum and maximum values of our desired output. We ensured that the value range changes little in independent knobbing tests. After that, we connect the ADC1115 to the Pi and read its voltage signal using the script `test_ADS1115.py`. We observed a fast and stable voltage input, and only after that did we continue integrating the ADC module into our main program. For the buttons, we test it using simple `print()` function, and tuned the **bouncetime** to make minimum trigger faults.
+
+---
+
+## Results
+> In this project, we successfully implemented an AI-powered digital synthesizer that works smoothly. We did everything as planned, even beyond that. As planned, we successfully designed the software of real-time sound generation, **envelope/filter/reverb** effects, and **playback**. We built the fancy PiTFT display with **dynamic ADSR graphics**. We successfully built the hardware including the **knob** and the **ADC**, providing stable and low-latency real-time parameter tuning, which is astonishing. We also successfully included **VTT**, **TTV**, and **LLM-API** integration that works together smoothly as a vocal-chatbot. We successfully prompt the LLM to generate accurate parameters in `.json` format.
+
+> Beyond our plan, we built a vivid **AI-Sphere** that dynamically changes when the AI listens/speaks/thinks, making the AI-sound generation process more interesting. Additionally, we performed several performance optimization techniques. First, we use an **interval of 0.1s** for ADC voltage sampling, successfully mitigated the overhead of polling due to unavailability of hardware interrupt. Second, we used a `dirty` flag to enable **adaptive screen updating**, letting the program draw UI only when parameters are updated and display needs to be changed. Third, we combine the `dirty` flag with our real-time sound generation for an **interruptive sound play** under AI mode. Because Pi4 cannot process dynamic AI-Sphere update together with sound play, we suspend the AI-Sphere drawing using dirty flag when sample sound is played after the configs are generated. In this way, users can hear the sound as soon as the AI generates it, giving immediate feedback. Last but not least, we support **consecutive conversation** under AI-mode. Users can ask questions and tune parameters endlessly with the LLM, and exit the AI-mode using voice control. The above optimizations together provide a smooth and astonishing experience of AI sound design under a Raspberry Pi 4.
+
+---
+
+## Conclusions
 
 This project demonstrates a fully integrated, low-latency software synthesizer with AI-driven control, real-time audio DSP, and an intuitive single-knob UI. We achieved sub ~ms trigger response, glitch-free envelopes and filters, and a stable reverb—all running on a Raspberry Pi 4 in parallel with on-device and cloud AI services. Key lessons include the importance of lean ISR logic, block-aligned parameter swaps to avoid audio artifacts, and “dirty-rect” display updates to preserve CPU headroom for sound. Future improvements could add multi-voice polyphony, melody generation, customizable convolution reverbs, a richer patch-management interface, and deeper integration of on-device neural networks for offline AI performance.
 
 ---
 
+## Future Work
+
+1. **Low-Latency AI Response**. Currently, a request to AI would go through `VTT -> LLM API -> Cloud -> LLM Response -> TTV`, among which the `VTT` consumes around 5~10 seconds of time running on a local machine. It also takes ~5 seconds to run it on the cloud. We can equip our Pi with an accelerator to run the `VTT` model and reduce latency.
+
+2. **DAW and MIDI Support**. Our sound generation works well, but lacks interoperability. Our synthesizer is a stand-alone project that cannot connect with DJ setups, DAW(Digital Audio Workstation)s, and does not support MIDI input/output. We can add those to fit our design with the industrial standard.
+
+3. **Melody generation**. Music is about sound and melodies, it would be boring to be able to generate just one tone. We can use LLM for **time sequence generation** and **melody generation**. Together with our sound generation, the Pi can play any song the user wants.
+
+---
+
 ## Team Contributions
 
-| Member       | Role                                           |
-| ------------ | ---------------------------------------------- |
-| Zuoming Fu   | Software system integration, Hardware design, AI system integration, audio system, viewing and knobbing modules design.  |
-| Muyang Li | AI system modules, LLM API, VTT and TTV modules, testing, and optimization. |
+<div style="text-align: center; font-weight: bold; margin-bottom: 10px;">
+  <span style="display: inline-block; width: 45%;">Member</span>
+  <span style="display: inline-block; width: 45%;">Role</span>
+</div>
+
+<div style="display: flex; justify-content: center; margin-bottom: 20px;">
+  <div style="width: 45%; text-align: center;">
+    <p><strong>Zuoming Fu</strong></p>
+    <p>Main Developer</p>
+  </div>
+  <div style="width: 45%; text-align: center;">
+    <p style="font-size: 14px;">
+      Software system integration, hardware design,<br>
+      AI system integration, audio system,<br>
+      viewing and knobbing modules design.
+    </p>
+  </div>
+</div>
+
+<div style="display: flex; justify-content: center;">
+  <div style="width: 45%; text-align: center;">
+    <p><strong>Muyang Li</strong></p>
+    <p>AI Engineer</p>
+  </div>
+  <div style="width: 45%; text-align: center;">
+    <p style="font-size: 14px;">
+      AI system modules, LLM API,<br>
+      VTT and TTV modules,<br>
+      testing and optimization.
+    </p>
+  </div>
+</div>
+
+![Group](./docs/group.png)
+<div align="center">
+     <p style="margin-top:10px; font-size:16px;">Fig6. Meet Our Team - Zuoming Fu (Left) Muyang Li (Right)</p>
+</div>
 
 ---
 

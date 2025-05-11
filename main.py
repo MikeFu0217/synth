@@ -87,7 +87,7 @@ playback_pos = 0
 
 # AI setup
 AI_state = "idle"
-exit_event = threading.Event()
+ai_abort = threading.Event()
 api_key_path = ".openai_api_key"
 llm = reaction.LLMClient(api_key_path=api_key_path)
 with open(api_key_path) as f:
@@ -119,7 +119,7 @@ def ai_conversation_loop():
     llm_response = {}
 
     tts.speak("Entering AI mode. Please describe the sound you want to create.")
-    while not exit_event.is_set():
+    while not ai_abort.is_set():
         if AI_state == "silence":
             dirty = True
             AI_state = "listen"
@@ -147,7 +147,7 @@ def ai_conversation_loop():
             if llm_response.get("exit", 1) == 1:
                 # user wants to quit AI mode immediately
                 tts.speak(f'''{llm_response.get("description", "")}. Exiting AI mode''')
-                exit_event.set()
+                ai_abort.set()
                 print("LLM returned exit=1, quitting AI mode")
                 break
             AI_state = "speak"
@@ -231,7 +231,7 @@ def GPIO26_callback(channel):
 
     # entering AI mode?
     if AI_state == "idle":
-        exit_event.clear()           # ensure the flag is off
+        ai_abort.clear()           # ensure the flag is off
         AI_state = "silence"
         dirty = True
         # start the daemon thread
@@ -240,7 +240,7 @@ def GPIO26_callback(channel):
 
     # exiting AI mode?
     else:
-        exit_event.set()             # tell the thread to stop ASAP
+        ai_abort.set()             # tell the thread to stop ASAP
         print("Exiting AI mode")
         # thread will reset AI_state to 'idle' on its own
         # but we can force it right away
