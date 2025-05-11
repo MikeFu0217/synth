@@ -226,7 +226,7 @@ In this Project, we aim to design a real-time digital synthesizer with an AI Age
 
      A `ParticleSystem` and a `Blooming Ball` are designed together to form the vivid `AI Sphere` that adds fun the the AI generating process.
 
-   - ***LLM prompting and structured output***:  
+   - **LLM prompting and structured output**:  
      To make sure that LLM outputs the exact need parameters without any other stuffs, the `System Prompt` embed a strict JSON schema:  
      ```python
         SYSTEM_PROMPT = """You are a professional synthesizer sound designer assistant.
@@ -305,7 +305,7 @@ In this Project, we aim to design a real-time digital synthesizer with an AI Age
      ```  
      The returned text is parsed via `resp = json.loads(raw)` and validated before calling `Sound.note_on()`.
 
-   - `TTV and VTT`:  
+   - **TTV and VTT**:  
      (“TTV” = Text-to-Voice and “VTT” = Voice-to-Text)  
      Two ASR/TTS pipelines:
      - **VTT**: `SpeechToTextLocal` (Vosk) & `SpeechToTextWhisper` (OpenAI) selectable.  
@@ -324,12 +324,13 @@ In this Project, we aim to design a real-time digital synthesizer with an AI Age
      ```
      Support for streaming output reduces end-to-end latency.
 
-   - ***Circuit design***:  
+   - **Circuit design**:  
      We use an **ADS1115** ADC on I²C plus two tactile switches (`SW_REC` on GPIO 19, `SW_LLM` on GPIO 26) wired with pull-up and series resistors for reliable edge detection:
      ![dfafa](./docs/circuit.png)
      <div align="center">
      <p style="margin-top:10px; font-size:16px;">Fig5. Hardware Circuit Schematic Diagram</p>
      </div>
+     
      - **Switch Debounce & Safety**:  
        The 10 kΩ pull-ups keep the lines high; the 1 kΩ series resistors limit fault currents if the pin is accidentally reconfigured as output.
 
@@ -398,7 +399,7 @@ In this Project, we aim to design a real-time digital synthesizer with an AI Age
 
      This block-aligned, buffer-based approach allows seamless one-button looping with no latency issues, ideal for live capture and replay.
 
-   - `Adaptive display module`:  
+   - **Adaptive display module**:  
      In **view.py** we defines sub-draw functions:  
      ```python
      rects = _compute_panel_regions(screen.get_size())
