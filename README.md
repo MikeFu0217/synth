@@ -660,8 +660,8 @@ This project demonstrates a fully integrated, low-latency software synthesizer w
 5. [Raspberry Pi GPIO Library](https://sourceforge.net/projects/raspberry-gpio-python/)  
 6. [Vosk Models](https://alphacephei.com/vosk/models)
 7. [OpenAI Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs?api-mode=chat)
-8. [P160 Potentiometer Datasheet](chrome-extension://efaidnbmnnnibpcajpcglclefindmkaj/https://www.ttelectronics.com/TTElectronics/media/ProductFiles/Datasheet/P160.pdf)
-9. [ADS1115 Datasheet](chrome-extension://efaidnbmnnnibpcajpcglclefindmkaj/https://cdn-shop.adafruit.com/datasheets/ads1115.pdf)
+8. [P160 Potentiometer Datasheet](https://www.ttelectronics.com/TTElectronics/media/ProductFiles/Datasheet/P160.pdf)
+9. [ADS1115 Datasheet](https://cdn-shop.adafruit.com/datasheets/ads1115.pdf)
 10. [ADS1x15 Library](https://learn.adafruit.com/adafruit-4-channel-adc-breakouts/python-circuitpython)
 
 ---
